@@ -109,6 +109,8 @@ _FULL_CONFIG = (
     ("_is_all_true", _is_all_true),
     ("_jagged_to_padded_dense_forward", _jagged_to_padded_dense_forward),
     ("_linalg_eigvals", _linalg_eigvals),
+    ("le_.Scalar", le_scalar_),
+    ("le_.Tensor", le_),
     ("linalg_svdvals", linalg_svdvals),
     ("_log_softmax", log_softmax),
     ("_log_softmax.out", log_softmax_out),
