@@ -1,3 +1,17 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from flag_gems.ops.__ilshift__ import __ilshift__
 from flag_gems.ops.__irshift__ import __irshift__
 from flag_gems.ops.__lshift__ import __lshift__
@@ -531,10 +545,10 @@ from flag_gems.ops.linear import linear
 from flag_gems.ops.linear_backward import linear_backward
 from flag_gems.ops.linspace import linspace
 from flag_gems.ops.log import log
-from flag_gems.ops.log10 import log10, log10_, log10_out
 from flag_gems.ops.log1p import log1p, log1p_out
 from flag_gems.ops.log1p_ import log1p_
 from flag_gems.ops.log2 import log2, log2_
+from flag_gems.ops.log10 import log10, log10_, log10_out
 from flag_gems.ops.log_ import log_
 from flag_gems.ops.log_normal_ import log_normal_
 from flag_gems.ops.log_sigmoid import log_sigmoid
@@ -946,8 +960,6 @@ from flag_gems.ops.zeros import zero_, zeros
 from flag_gems.ops.zeros_like import zeros_like
 
 __all__ = [
-    "SUPPORTED_FP8_DTYPE",
-    "ScaleDotProductAttention",
     "__ilshift__",
     "__irshift__",
     "__lshift__",
@@ -1754,6 +1766,7 @@ __all__ = [
     "scaled_mm_out",
     "scaled_softmax_backward",
     "scaled_softmax_forward",
+    "ScaleDotProductAttention",
     "scatter",
     "scatter_",
     "scatter_add",
@@ -1883,6 +1896,7 @@ __all__ = [
     "sum_dim",
     "sum_dim_out",
     "sum_out",
+    "SUPPORTED_FP8_DTYPE",
     "svd",
     "sym_constrain_range",
     "sym_storage_offset",

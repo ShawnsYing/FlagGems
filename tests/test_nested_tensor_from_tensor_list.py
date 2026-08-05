@@ -28,8 +28,7 @@ def test_nested_tensor_from_tensor_list(shapes, dtype):
 
     ref_out = torch.ops.aten._nested_tensor_from_tensor_list(ref_list)
 
-    with flag_gems.use_gems():
-        res_out = flag_gems._nested_tensor_from_tensor_list(tensor_list)
+    res_out = flag_gems._nested_tensor_from_tensor_list(tensor_list)
 
     assert res_out.is_nested
     assert ref_out.is_nested
