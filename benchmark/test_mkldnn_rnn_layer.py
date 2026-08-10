@@ -59,13 +59,29 @@ def mkldnn_rnn_layer_input_fn(shape, dtype, device):
     )
 
 
-def _torch_mkldnn_rnn_layer_cpu_baseline(inp, w_ih, w_hh, b_ih, b_hh, hx, cx, *rest):
-    """torch.mkldnn_rnn_layer (oneDNN) is CPU-only, so route the tensor inputs
-    through CPU and move the results back to the original device."""
-    dev = inp.device
-    cpu = [t.detach().to("cpu") for t in (inp, w_ih, w_hh, b_ih, b_hh, hx, cx)]
-    out, hy, cy, ws = torch.mkldnn_rnn_layer(*cpu, *rest)
-    return out.to(dev), hy.to(dev), cy.to(dev), ws
+def _torch_lstm_layer_baseline(inp, w_ih, w_hh, b_ih, b_hh, hx, cx, *rest):
+    """Same-device LSTM baseline.
+
+    The aten mkldnn_rnn_layer (oneDNN) is CPU-only, so it cannot serve as an
+    on-device torch baseline. Reproduce the identical single-layer LSTM with
+    native PyTorch on the input device instead (gate order i, f, g, o)."""
+    reverse = rest[0]
+    seq_len = inp.shape[0]
+    h = hx
+    c = cx
+    steps = range(seq_len - 1, -1, -1) if reverse else range(seq_len)
+    outputs = [None] * seq_len
+    for t in steps:
+        gates = torch.addmm(b_ih, inp[t], w_ih.t()) + torch.addmm(b_hh, h, w_hh.t())
+        i_g, f_g, g_g, o_g = gates.chunk(4, dim=1)
+        i_g = torch.sigmoid(i_g)
+        f_g = torch.sigmoid(f_g)
+        g_g = torch.tanh(g_g)
+        o_g = torch.sigmoid(o_g)
+        c = f_g * c + i_g * g_g
+        h = o_g * torch.tanh(c)
+        outputs[t] = h
+    return torch.stack(outputs, dim=0), h, c
 
 
 @pytest.mark.mkldnn_rnn_layer
@@ -73,7 +89,7 @@ def test_mkldnn_rnn_layer():
     bench = MkldnnRnnLayerBenchmark(
         input_fn=mkldnn_rnn_layer_input_fn,
         op_name="mkldnn_rnn_layer",
-        torch_op=_torch_mkldnn_rnn_layer_cpu_baseline,
+        torch_op=_torch_lstm_layer_baseline,
         gems_op=flag_gems.ops.mkldnn_rnn_layer,
         dtypes=consts.FLOAT_DTYPES,
     )

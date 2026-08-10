@@ -45,32 +45,42 @@ def _make_lstm_params(input_size, hidden_size, dtype, device):
 def _reference_mkldnn_rnn_layer(
     input_tensor, w_ih, w_hh, b_ih, b_hh, hx, cx, hidden_size, reverse
 ):
-    """oneDNN reference. torch.mkldnn_rnn_layer is CPU-only, so route through CPU
-    and move the results back to the original device for comparison."""
+    """Analytical single-layer LSTM reference (mode=2).
+
+    The aten mkldnn_rnn_layer is a plain LSTM; its oneDNN backend is CPU-only
+    and only supports fp32 (fp16/bf16 raise "could not create a primitive
+    descriptor" on some builds), so we reproduce the exact computation in pure
+    PyTorch instead. Weights are packed (4H, *) in gate order i, f, g, o; the
+    accumulation is done in fp32 to match the on-device kernel, then cast back.
+    """
     dev = input_tensor.device
-    # oneDNN mkldnn_rnn_layer only runs on CPU; move inputs there explicitly.
-    cpu_args = [
-        t.detach().to("cpu") for t in (input_tensor, w_ih, w_hh, b_ih, b_hh, hx, cx)
-    ]
-    output, hy, cy, _workspace = torch.mkldnn_rnn_layer(
-        cpu_args[0],
-        cpu_args[1],
-        cpu_args[2],
-        cpu_args[3],
-        cpu_args[4],
-        cpu_args[5],
-        cpu_args[6],
-        reverse,
-        [],
-        _MODE,
-        hidden_size,
-        _NUM_LAYERS,
-        True,
-        _BIDIRECTIONAL,
-        _BATCH_FIRST,
-        False,
+    dtype = input_tensor.dtype
+    x = input_tensor.float()
+    wih = w_ih.float()
+    whh = w_hh.float()
+    bih = b_ih.float()
+    bhh = b_hh.float()
+    h = hx.float()
+    c = cx.float()
+    seq_len = x.shape[0]
+    time_steps = range(seq_len - 1, -1, -1) if reverse else range(seq_len)
+    outputs = [None] * seq_len
+    for t in time_steps:
+        gates = torch.addmm(bih, x[t], wih.t()) + torch.addmm(bhh, h, whh.t())
+        i_g, f_g, g_g, o_g = gates.chunk(4, dim=1)
+        i_g = torch.sigmoid(i_g)
+        f_g = torch.sigmoid(f_g)
+        g_g = torch.tanh(g_g)
+        o_g = torch.sigmoid(o_g)
+        c = f_g * c + i_g * g_g
+        h = o_g * torch.tanh(c)
+        outputs[t] = h
+    output = torch.stack(outputs, dim=0)
+    return (
+        output.to(device=dev, dtype=dtype),
+        h.to(device=dev, dtype=dtype),
+        c.to(device=dev, dtype=dtype),
     )
-    return output.to(dev), hy.to(dev), cy.to(dev)
 
 
 @pytest.mark.skipif(
