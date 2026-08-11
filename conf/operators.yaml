@@ -10187,6 +10187,17 @@ ops:
       - NeuralNetwork
     stages:
       - stable: '5.0'
+  - id: sym_constrain_range_for_size
+    description: Constrains the range of a symbolic size value. Used for torch.compile symbolic tracing to provide bounds information for size-related symbolic integers. Unlike sym_constrain_range, enforces min >= 0 and max > 2.
+    for:
+      - sym_constrain_range_for_size
+    labels:
+      - aten
+      - KernelGen
+    kind:
+      - Tensor
+    stages:
+      - alpha: '5.4'
   - id: sym_storage_offset
     description: Returns the storage offset of the input tensor as an integer. Used for torch.compile symbolic tracing.
     for:
