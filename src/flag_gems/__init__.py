@@ -986,6 +986,8 @@ _FULL_CONFIG = (
     ("trunc", trunc),
     ("trunc_", trunc_),
     ("unbind.int", unbind),
+    ("vsplit.int", vsplit),
+    ("vsplit.array", vsplit),
     ("unbind_copy", unbind_copy),
     ("unfold", unfold),
     ("unfold_backward", unfold_backward),
