@@ -143,6 +143,7 @@ _FULL_CONFIG = (
         _weight_int4pack_mm_with_scales_and_zeros,
     ),
     ("binary_cross_entropy_backward", binary_cross_entropy_backward),
+    ("corrcoef", corrcoef),
     ("linalg_svdvals", linalg_svdvals),
     ("_log_softmax", log_softmax),
     ("_log_softmax.out", log_softmax_out),
