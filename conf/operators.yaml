@@ -13,6 +13,17 @@
 # limitations under the License.
 
 ops:
+  - id: _linalg_solve_ex
+    description: Solves the linear system AX = B via LU factorization, returning (result, LU, pivots, info).
+    for:
+      - _linalg_solve_ex
+    labels:
+      - aten
+      - KernelGen
+    kind:
+      - LinearAlg
+    stages:
+      - alpha: '5.4'
   - id: _reshape_alias
     description: |
       Creates a view of the input tensor with the given size and stride,
@@ -5648,17 +5659,6 @@ ops:
       Computes the sign and natural logarithm of the absolute value of the determinant of a square matrix using LU decomposition with partial pivoting.
     for:
       - linalg.slogdet
-    labels:
-      - aten
-      - KernelGen
-    kind:
-      - LinearAlg
-    stages:
-      - alpha: '5.4'
-  - id: linalg_solve_ex
-    description: Solves the linear system AX = B via LU factorization, returning (result, LU, pivots, info).
-    for:
-      - _linalg_solve_ex
     labels:
       - aten
       - KernelGen
