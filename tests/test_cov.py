@@ -78,11 +78,12 @@ def test_cov_fweights(dtype):
     inp = torch.randn((8, n_cols), dtype=dtype, device=flag_gems.device)
     fweights = torch.randint(1, 5, (n_cols,), device=flag_gems.device)
     ref_inp = utils.to_reference(inp, upcast=True)
+    ref_fweights = utils.to_reference(fweights)
 
     with flag_gems.use_gems():
         res_out = torch.cov(inp, fweights=fweights)
 
-    ref_out = torch.cov(ref_inp, fweights=fweights).to(dtype)
+    ref_out = torch.cov(ref_inp, fweights=ref_fweights).to(dtype)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n_cols)
 
@@ -96,11 +97,12 @@ def test_cov_aweights(dtype):
     inp = torch.randn((8, n_cols), dtype=dtype, device=flag_gems.device)
     aweights = torch.rand((n_cols,), device=flag_gems.device) + 0.1
     ref_inp = utils.to_reference(inp, upcast=True)
+    ref_aweights = utils.to_reference(aweights)
 
     with flag_gems.use_gems():
         res_out = torch.cov(inp, aweights=aweights)
 
-    ref_out = torch.cov(ref_inp, aweights=aweights).to(dtype)
+    ref_out = torch.cov(ref_inp, aweights=ref_aweights).to(dtype)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n_cols)
 
@@ -114,11 +116,15 @@ def test_cov_fweights_aweights(dtype):
     fweights = torch.randint(1, 4, (n_cols,), device=flag_gems.device)
     aweights = torch.rand((n_cols,), device=flag_gems.device) + 0.1
     ref_inp = utils.to_reference(inp, upcast=True)
+    ref_fweights = utils.to_reference(fweights)
+    ref_aweights = utils.to_reference(aweights)
 
     with flag_gems.use_gems():
         res_out = torch.cov(inp, fweights=fweights, aweights=aweights)
 
-    ref_out = torch.cov(ref_inp, fweights=fweights, aweights=aweights).to(dtype)
+    ref_out = torch.cov(
+        ref_inp, fweights=ref_fweights, aweights=ref_aweights
+    ).to(dtype)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n_cols)
 
