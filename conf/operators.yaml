@@ -11130,6 +11130,17 @@ ops:
       - Tensor
     stages:
       - alpha: '5.4'
+  - id: sym_constrain_range
+    description: Constrains the range of a symbolic integer value. Used for torch.compile symbolic tracing to provide bounds information.
+    for:
+      - sym_constrain_range
+    labels:
+      - aten
+      - KernelGen
+    kind:
+      - Tensor
+    stages:
+      - alpha: '5.4'
   - id: sym_stride
     description: Returns the stride of the input tensor as a tuple of integers. Used for torch.compile symbolic tracing.
     for:
