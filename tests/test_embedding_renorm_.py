@@ -40,26 +40,26 @@ EMBEDDING_RENORM_MAX_NORM_LIST = [1.0] if QUICK_MODE else [0.5, 1.0, 2.0]
 def test_embedding_renorm_(shape, dtype, norm_type, max_norm):
     num_embeddings, embedding_dim = shape
     # Scale rows up so a good fraction exceed max_norm and get renormalized.
-    weight = torch.randn(
+    inp = torch.randn(
         num_embeddings, embedding_dim, dtype=dtype, device=flag_gems.device
     )
-    weight = weight * 1.5
+    inp = inp * 1.5
     # Repeated indices exercise the dedup path; cover a subset of the rows.
     num_indices = max(1, num_embeddings // 2)
     indices = torch.randint(
         0, num_embeddings, (num_indices,), dtype=torch.long, device=flag_gems.device
     )
 
-    ref_weight = utils.to_reference(weight)
+    ref_inp = utils.to_reference(inp)
     ref_indices = utils.to_reference(indices)
 
     ref_out = torch.ops.aten.embedding_renorm_(
-        ref_weight, ref_indices, max_norm, norm_type
+        ref_inp, ref_indices, max_norm, norm_type
     )
     with flag_gems.use_gems():
-        res_out = torch.ops.aten.embedding_renorm_(weight, indices, max_norm, norm_type)
+        res_out = torch.ops.aten.embedding_renorm_(inp, indices, max_norm, norm_type)
 
     # embedding_renorm_ is in-place: validate both the returned handle and the
     # mutated input tensor against the reference.
     utils.gems_assert_close(res_out, ref_out, dtype)
-    utils.gems_assert_close(weight, ref_weight, dtype)
+    utils.gems_assert_close(inp, ref_inp, dtype)
