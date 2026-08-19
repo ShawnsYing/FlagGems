@@ -34,18 +34,22 @@ def test_embedding_bag(num_bags, embedding_dim, mode, dtype):
     )[:num_bags]
     offsets[0] = 0
 
-    # per_sample_weights is only valid for sum (0) / mean (1).
+    # per_sample_weights is only supported for sum mode (mode=0) in aten.
     per_sample_weights = None
-    if mode != 2:
+    if mode == 0:
         per_sample_weights = torch.rand(
             num_samples, dtype=dtype, device=flag_gems.device
         )
 
-    ref_weight = utils.to_reference(weight)
-    ref_psw = utils.to_reference(per_sample_weights)
+    ref_weight = utils.to_reference(weight, True)
+    # indices/offsets are integer index tensors: move to the reference device
+    # (when TO_CPU) but do not upcast them to float.
+    ref_indices = utils.to_reference(indices)
+    ref_offsets = utils.to_reference(offsets)
+    ref_psw = utils.to_reference(per_sample_weights, True)
     ref_out = utils.to_reference(
         torch.ops.aten.embedding_bag(
-            ref_weight, indices, offsets, False, mode, False, ref_psw, False
+            ref_weight, ref_indices, ref_offsets, False, mode, False, ref_psw, False
         )[0]
     )
     with flag_gems.use_gems():
