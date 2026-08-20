@@ -16,8 +16,137 @@
 import logging
 
 import torch
+import triton
+import triton.language as tl
+
+from flag_gems.utils import tl_extra_shim
+from flag_gems.utils.libentry import libentry
 
 logger = logging.getLogger(__name__)
+
+
+@libentry()
+@triton.jit
+def _lstm_cell_forward_kernel(
+    pre_gates_ptr,  # (batch, 4 * hidden) pre-activation gates i|f|g|o
+    c_prev_ptr,  # (batch, hidden) incoming cell state
+    i_ptr,  # (batch, hidden) output: input-gate activation
+    f_ptr,  # (batch, hidden) output: forget-gate activation
+    g_ptr,  # (batch, hidden) output: cell-gate activation
+    o_ptr,  # (batch, hidden) output: output-gate activation
+    c_ptr,  # (batch, hidden) output: new cell state
+    h_ptr,  # (batch, hidden) output: new hidden state
+    hidden_size: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    """One LSTM timestep forward: apply gate nonlinearities and the cell/hidden
+    recurrence. One program per batch row; BLOCK_SIZE covers the hidden dim."""
+    batch_idx = tl.program_id(0)
+    offsets = tl.arange(0, BLOCK_SIZE)
+    mask = offsets < hidden_size
+
+    gate_base = pre_gates_ptr + batch_idx * 4 * hidden_size
+    i_pre = tl.load(gate_base + 0 * hidden_size + offsets, mask=mask, other=0.0).to(
+        tl.float32
+    )
+    f_pre = tl.load(gate_base + 1 * hidden_size + offsets, mask=mask, other=0.0).to(
+        tl.float32
+    )
+    g_pre = tl.load(gate_base + 2 * hidden_size + offsets, mask=mask, other=0.0).to(
+        tl.float32
+    )
+    o_pre = tl.load(gate_base + 3 * hidden_size + offsets, mask=mask, other=0.0).to(
+        tl.float32
+    )
+
+    c_prev = tl.load(
+        c_prev_ptr + batch_idx * hidden_size + offsets, mask=mask, other=0.0
+    ).to(tl.float32)
+
+    i = tl.sigmoid(i_pre)
+    f = tl.sigmoid(f_pre)
+    g = tl_extra_shim.tanh(g_pre)
+    o = tl.sigmoid(o_pre)
+
+    c = f * c_prev + i * g
+    h = o * tl_extra_shim.tanh(c)
+
+    row = batch_idx * hidden_size + offsets
+    tl.store(i_ptr + row, i, mask=mask)
+    tl.store(f_ptr + row, f, mask=mask)
+    tl.store(g_ptr + row, g, mask=mask)
+    tl.store(o_ptr + row, o, mask=mask)
+    tl.store(c_ptr + row, c, mask=mask)
+    tl.store(h_ptr + row, h, mask=mask)
+
+
+@libentry()
+@triton.jit
+def _lstm_cell_backward_kernel(
+    i_ptr,  # (batch, hidden) cached input-gate activation
+    f_ptr,  # (batch, hidden) cached forget-gate activation
+    g_ptr,  # (batch, hidden) cached cell-gate activation
+    o_ptr,  # (batch, hidden) cached output-gate activation
+    c_ptr,  # (batch, hidden) cached new cell state at this step
+    c_prev_ptr,  # (batch, hidden) cached incoming cell state at this step
+    dh_ptr,  # (batch, hidden) in: recurrent hidden-state gradient
+    dc_ptr,  # (batch, hidden) in/out: cell-state gradient carried across steps
+    grad_out_ptr,  # (batch, hidden) upstream gradient into this step's output
+    grad_gates_ptr,  # (batch, 4 * hidden) out: gradient w.r.t. pre-activation gates
+    has_grad_out: tl.constexpr,
+    hidden_size: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    """One LSTM timestep backward: the chain-rule gate-gradient math. Consumes
+    the recurrent gradients dh/dc, emits grad_gates (di|df|dg|do pre-activation)
+    and overwrites dc with the gradient carried to the previous cell state."""
+    batch_idx = tl.program_id(0)
+    offsets = tl.arange(0, BLOCK_SIZE)
+    mask = offsets < hidden_size
+    row = batch_idx * hidden_size + offsets
+
+    i = tl.load(i_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    f = tl.load(f_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    g = tl.load(g_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    o = tl.load(o_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    c_t = tl.load(c_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    c_prev = tl.load(c_prev_ptr + row, mask=mask, other=0.0).to(tl.float32)
+
+    dh = tl.load(dh_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    dc = tl.load(dc_ptr + row, mask=mask, other=0.0).to(tl.float32)
+    if has_grad_out:
+        dh = dh + tl.load(grad_out_ptr + row, mask=mask, other=0.0).to(tl.float32)
+
+    tanh_c = tl_extra_shim.tanh(c_t)
+    # h_t = o * tanh(c_t)
+    do = dh * tanh_c
+    do_pre = do * o * (1.0 - o)
+    # cell-state gradient: tanh path from h plus the recurrent dc
+    dc = dc + dh * o * (1.0 - tanh_c * tanh_c)
+
+    di = dc * g
+    df = dc * c_prev
+    dg = dc * i
+    di_pre = di * i * (1.0 - i)
+    df_pre = df * f * (1.0 - f)
+    dg_pre = dg * (1.0 - g * g)
+
+    # gradient carried to the previous cell state
+    dc_prev = dc * f
+
+    gate_base = grad_gates_ptr + batch_idx * 4 * hidden_size
+    tl.store(gate_base + 0 * hidden_size + offsets, di_pre, mask=mask)
+    tl.store(gate_base + 1 * hidden_size + offsets, df_pre, mask=mask)
+    tl.store(gate_base + 2 * hidden_size + offsets, dg_pre, mask=mask)
+    tl.store(gate_base + 3 * hidden_size + offsets, do_pre, mask=mask)
+    tl.store(dc_ptr + row, dc_prev, mask=mask)
+
+
+def _lstm_block_size(hidden_size: int) -> int:
+    # BLOCK_SIZE spans the hidden dim in one program; clamp to a sane range so
+    # small hidden sizes still use a full warp and large ones stay within limits.
+    block = triton.next_power_of_2(hidden_size)
+    return max(32, min(block, 1024))
 
 
 def cudnn_rnn_backward(
@@ -46,9 +175,14 @@ def cudnn_rnn_backward(
 ):
     """Compute gradients for cuDNN RNN backward pass.
 
-    This FlagGems implementation uses pure PyTorch to reimplement the RNN
-    forward pass and then applies autograd to compute gradients, avoiding
-    dependency on cuDNN's opaque reserve tensor.
+    cuDNN's RNN backward relies on an opaque ``reserve`` buffer and packed
+    ``weight_buf`` that cannot be reconstructed outside cuDNN, so this FlagGems
+    implementation recomputes the backward analytically via BPTT. The
+    LSTM-specific core computation -- the gate nonlinearities in the forward
+    recompute and the chain-rule gate-gradient math in the backward -- runs in
+    Triton kernels (:func:`_lstm_cell_forward_kernel` /
+    :func:`_lstm_cell_backward_kernel`); the dense gate/weight matmuls stay on
+    the BLAS path.
 
     Currently supports single-layer unidirectional LSTM (mode=2) only.
 
@@ -56,7 +190,7 @@ def cudnn_rnn_backward(
         input: Input tensor (seq_len, batch, input_size) or (batch, seq_len, input_size) if batch_first
         weight: List of weight/bias tensors [w_ih, w_hh, b_ih, b_hh, ...]
         weight_stride0: Number of tensors per layer (typically 4 with biases)
-        weight_buf: Flattened weight buffer (unused in pure-torch impl)
+        weight_buf: Flattened weight buffer (unused in this implementation)
         hx: Initial hidden state (num_layers, batch, hidden_size)
         cx: Initial cell state (num_layers, batch, hidden_size) for LSTM
         output: Forward output (unused, recomputed)
@@ -73,16 +207,13 @@ def cudnn_rnn_backward(
         bidirectional: Bidirectional RNN flag
         batch_sizes: Packed sequence batch sizes (empty for unpacked)
         dropout_state: Dropout state tensor
-        reserve: cuDNN reserve workspace (unused in pure-torch impl)
+        reserve: cuDNN reserve workspace (unused in this implementation)
         output_mask: Mask for which gradients to compute [grad_input, grad_hx, grad_cx, grad_weight]
 
     Returns:
         Tuple of (grad_input, grad_hx, grad_cx, grad_weight_list)
     """
-    logger.debug(
-        f"GEMS CUDNN_RNN_BACKWARD mode={mode} layers={num_layers} "
-        f"hidden={hidden_size} bidir={bidirectional}"
-    )
+    logger.debug("GEMS CUDNN_RNN_BACKWARD")
 
     # Validate supported configuration
     if mode != 2:
@@ -96,12 +227,12 @@ def cudnn_rnn_backward(
     if batch_sizes:
         raise NotImplementedError("Packed sequences are not currently supported")
 
-    # Extract weights for single layer.
+    # Extract weights for the single layer.
     w_ih, w_hh, b_ih, b_hh = weight[0], weight[1], weight[2], weight[3]
 
     # Work in (seq, batch, *) layout regardless of batch_first.
     inp = input.transpose(0, 1).contiguous() if batch_first else input.contiguous()
-    seq_len, batch_size, input_size = inp.shape
+    seq_len, batch_size, _ = inp.shape
 
     # Compute in float32 for numerical stability, then cast results back.
     orig_dtype = input.dtype
@@ -111,34 +242,53 @@ def cudnn_rnn_backward(
     w_hh_c = w_hh.to(compute_dtype)
     b_ih_c = b_ih.to(compute_dtype)
     b_hh_c = b_hh.to(compute_dtype)
-    h0 = hx.squeeze(0).to(compute_dtype)  # (batch, hidden)
-    c0 = cx.squeeze(0).to(compute_dtype)
+    h = hx.squeeze(0).to(compute_dtype).contiguous()  # (batch, hidden)
+    c = cx.squeeze(0).to(compute_dtype).contiguous()
 
-    # --- Forward recomputation, saving per-step activations for BPTT. ---
-    # h_prev_list[t]/c_prev_list[t] are the states entering step t; the gate
-    # activations (post-nonlinearity) are cached to avoid recomputing them.
-    h_prev_list = [h0]
-    c_prev_list = [c0]
+    device = inp_c.device
+    BLOCK_SIZE = _lstm_block_size(hidden_size)
+    grid = (batch_size,)
+
+    def _empty():
+        return torch.empty(
+            (batch_size, hidden_size), device=device, dtype=compute_dtype
+        )
+
+    # --- Forward recomputation, caching per-step gate activations for BPTT. ---
+    # The dense (x @ W_ih^T + h @ W_hh^T) projection is BLAS; the Triton kernel
+    # applies the gate nonlinearities and the cell/hidden recurrence.
+    h_prev_list = [h]
+    c_prev_list = [c]
     i_list, f_list, g_list, o_list, c_new_list = [], [], [], [], []
-    h, c = h0, c0
     for t in range(seq_len):
-        gates = inp_c[t] @ w_ih_c.t() + b_ih_c + h @ w_hh_c.t() + b_hh_c
-        i, f, g, o = gates.chunk(4, dim=1)
-        i = torch.sigmoid(i)
-        f = torch.sigmoid(f)
-        g = torch.tanh(g)
-        o = torch.sigmoid(o)
-        c = f * c + i * g
-        h = o * torch.tanh(c)
-        i_list.append(i)
-        f_list.append(f)
-        g_list.append(g)
-        o_list.append(o)
-        c_new_list.append(c)
-        h_prev_list.append(h)
-        c_prev_list.append(c)
+        pre_gates = (
+            inp_c[t] @ w_ih_c.t() + b_ih_c + h @ w_hh_c.t() + b_hh_c
+        ).contiguous()  # (batch, 4H)
+        i_t, f_t, g_t, o_t = _empty(), _empty(), _empty(), _empty()
+        c_t, h_t = _empty(), _empty()
+        _lstm_cell_forward_kernel[grid](
+            pre_gates,
+            c,
+            i_t,
+            f_t,
+            g_t,
+            o_t,
+            c_t,
+            h_t,
+            hidden_size,
+            BLOCK_SIZE,
+        )
+        i_list.append(i_t)
+        f_list.append(f_t)
+        g_list.append(g_t)
+        o_list.append(o_t)
+        c_new_list.append(c_t)
+        h_prev_list.append(h_t)
+        c_prev_list.append(c_t)
+        h, c = h_t, c_t
 
-    # --- Analytical backward through time (no autograd graph needed). ---
+    # --- Backward through time. Gate-gradient chain rule runs in Triton; the
+    # input/weight/recurrent matmuls stay on the BLAS path. ---
     grad_input_seq = torch.zeros_like(inp_c) if output_mask[0] else None
     grad_w_ih_acc = torch.zeros_like(w_ih_c)
     grad_w_hh_acc = torch.zeros_like(w_hh_c)
@@ -147,56 +297,49 @@ def cudnn_rnn_backward(
 
     # Seed recurrent gradients from grad_hy / grad_cy (final-step upstream).
     dh = (
-        grad_hy_in.squeeze(0).to(compute_dtype)
+        grad_hy_in.squeeze(0).to(compute_dtype).contiguous()
         if grad_hy_in is not None
-        else torch.zeros_like(h0)
+        else torch.zeros((batch_size, hidden_size), device=device, dtype=compute_dtype)
     )
     dc = (
-        grad_cy_in.squeeze(0).to(compute_dtype)
+        grad_cy_in.squeeze(0).to(compute_dtype).contiguous()
         if grad_cy_in is not None
-        else torch.zeros_like(c0)
+        else torch.zeros((batch_size, hidden_size), device=device, dtype=compute_dtype)
     )
     grad_out_seq = None
     if grad_output_in is not None:
         go = grad_output_in.transpose(0, 1) if batch_first else grad_output_in
-        grad_out_seq = go.to(compute_dtype)
+        grad_out_seq = go.to(compute_dtype).contiguous()
 
+    zero_go = torch.empty(0, device=device, dtype=compute_dtype)
     for t in range(seq_len - 1, -1, -1):
-        i, f, g, o = i_list[t], f_list[t], g_list[t], o_list[t]
-        c_t = c_new_list[t]
-        c_prev = c_prev_list[t]
-        h_prev = h_prev_list[t]
+        grad_gates = torch.empty(
+            (batch_size, 4 * hidden_size), device=device, dtype=compute_dtype
+        )
+        has_grad_out = grad_out_seq is not None
+        _lstm_cell_backward_kernel[grid](
+            i_list[t],
+            f_list[t],
+            g_list[t],
+            o_list[t],
+            c_new_list[t],
+            c_prev_list[t],
+            dh,
+            dc,  # updated in place to hold dc for the previous step
+            grad_out_seq[t] if has_grad_out else zero_go,
+            grad_gates,
+            has_grad_out,
+            hidden_size,
+            BLOCK_SIZE,
+        )
 
-        # Upstream gradient into h_t: output gradient plus recurrent term.
-        if grad_out_seq is not None:
-            dh = dh + grad_out_seq[t]
-
-        tanh_c = torch.tanh(c_t)
-        # h_t = o * tanh(c_t)
-        do = dh * tanh_c
-        do_pre = do * o * (1.0 - o)
-        # cell-state gradient accumulates the tanh path plus the recurrent dc.
-        dc = dc + dh * o * (1.0 - tanh_c * tanh_c)
-
-        di = dc * g
-        df = dc * c_prev
-        dg = dc * i
-        di_pre = di * i * (1.0 - i)
-        df_pre = df * f * (1.0 - f)
-        dg_pre = dg * (1.0 - g * g)
-
-        # Gradient carried to the previous cell state.
-        dc = dc * f
-
-        grad_gates = torch.cat([di_pre, df_pre, dg_pre, do_pre], dim=1)  # (B, 4H)
-
-        # Weight / bias gradients accumulate over time.
+        # Weight / bias gradients accumulate over time (BLAS).
         grad_w_ih_acc += grad_gates.t() @ inp_c[t]
-        grad_w_hh_acc += grad_gates.t() @ h_prev
+        grad_w_hh_acc += grad_gates.t() @ h_prev_list[t]
         grad_b_ih_acc += grad_gates.sum(dim=0)
         grad_b_hh_acc += grad_gates.sum(dim=0)
 
-        # Input gradient and recurrent hidden-state gradient.
+        # Input gradient and recurrent hidden-state gradient (BLAS).
         if grad_input_seq is not None:
             grad_input_seq[t] = grad_gates @ w_ih_c
         dh = grad_gates @ w_hh_c
