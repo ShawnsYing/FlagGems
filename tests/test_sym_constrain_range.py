@@ -16,6 +16,7 @@ import pytest
 import torch
 
 import flag_gems
+from flag_gems.ops.sym_constrain_range import sym_constrain_range as gems_impl
 
 # Scalar bounds for sym_constrain_range - covering min-only, max-only, both,
 # unconstrained, and negative ranges. sym_constrain_range operates on a scalar
@@ -29,15 +30,23 @@ SYM_CONSTRAIN_RANGE_CASES = [
     (-5, -10, 0),
 ]
 
+# Bounds violations that must raise, mirroring the ATen reference behaviour.
+SYM_CONSTRAIN_RANGE_VIOLATIONS = [
+    # (size, min, max)
+    (5, 10, 100),
+    (200, 0, 100),
+    (-1, 0, None),
+]
+
 
 @pytest.mark.sym_constrain_range
 @pytest.mark.parametrize("size, min_val, max_val", SYM_CONSTRAIN_RANGE_CASES)
 def test_sym_constrain_range(size, min_val, max_val):
-    """Test sym_constrain_range operator against the ATen reference.
+    """Test sym_constrain_range against the ATen reference.
 
-    sym_constrain_range is a no-op compiler hint that validates a scalar bound
-    and returns nothing (void), so we assert the FlagGems implementation matches
-    ATen: both accept in-range values and return None.
+    sym_constrain_range validates that a scalar symbolic integer lies in
+    ``[min, max]`` and returns nothing (void). We assert the FlagGems
+    implementation matches ATen: both accept in-range values and return None.
     """
     ref_out = torch.ops.aten.sym_constrain_range(size, min=min_val, max=max_val)
     with flag_gems.use_gems():
@@ -48,10 +57,29 @@ def test_sym_constrain_range(size, min_val, max_val):
 
 
 @pytest.mark.sym_constrain_range
-def test_sym_constrain_range_out_of_bounds():
-    """sym_constrain_range must raise when the value violates the bounds."""
-    with flag_gems.use_gems():
-        with pytest.raises(RuntimeError):
-            torch.ops.aten.sym_constrain_range(5, min=10, max=100)
-        with pytest.raises(RuntimeError):
-            torch.ops.aten.sym_constrain_range(200, min=0, max=100)
+@pytest.mark.parametrize("size, min_val, max_val", SYM_CONSTRAIN_RANGE_CASES)
+def test_sym_constrain_range_gems_impl(size, min_val, max_val, caplog):
+    """Directly exercise the FlagGems Triton implementation.
+
+    ``torch.ops.aten.sym_constrain_range`` may resolve to the built-in ATen
+    kernel, so we call the FlagGems wrapper directly to guarantee the Triton
+    range-check kernel runs (verified via the debug log) and returns None.
+    """
+    with caplog.at_level("DEBUG", logger="flag_gems.ops.sym_constrain_range"):
+        res_out = gems_impl(size, min=min_val, max=max_val)
+
+    assert "GEMS SYM_CONSTRAIN_RANGE" in caplog.text
+    assert res_out is None
+
+
+@pytest.mark.sym_constrain_range
+@pytest.mark.parametrize("size, min_val, max_val", SYM_CONSTRAIN_RANGE_VIOLATIONS)
+def test_sym_constrain_range_out_of_bounds(size, min_val, max_val):
+    """sym_constrain_range must raise when the value violates the bounds.
+
+    The FlagGems Triton implementation and the ATen reference must agree.
+    """
+    with pytest.raises(RuntimeError):
+        torch.ops.aten.sym_constrain_range(size, min=min_val, max=max_val)
+    with pytest.raises(RuntimeError):
+        gems_impl(size, min=min_val, max=max_val)

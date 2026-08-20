@@ -15,6 +15,8 @@
 import pytest
 import torch
 
+import flag_gems
+
 from . import base, consts
 
 # Scalar sizes for sym_constrain_range - it operates on a scalar symbolic size,
@@ -23,8 +25,9 @@ SYM_CONSTRAIN_RANGE_SIZES = [1, 16, 256, 4096, 65536]
 
 
 class SymConstrainRangeBenchmark(base.Benchmark):
-    """Custom benchmark for sym_constrain_range - validates a scalar bound and
-    returns nothing (void), so inputs are scalar sizes rather than tensors."""
+    """Custom benchmark for sym_constrain_range - validates a scalar bound with a
+    Triton kernel and returns nothing (void), so inputs are scalar sizes rather
+    than tensors."""
 
     def set_shapes(self, shape_file_path=None):
         self.shapes = SYM_CONSTRAIN_RANGE_SIZES
@@ -40,6 +43,9 @@ def test_sym_constrain_range():
     bench = SymConstrainRangeBenchmark(
         op_name="sym_constrain_range",
         torch_op=torch.ops.aten.sym_constrain_range,
+        # torch.ops.aten dispatch may bypass FlagGems for this op, so point the
+        # gems side directly at the FlagGems Triton implementation.
+        gems_op=flag_gems.sym_constrain_range,
         dtypes=consts.FLOAT_DTYPES,
     )
     bench.run()
