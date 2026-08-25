@@ -25,6 +25,10 @@ def dsplit(input: torch.Tensor, indices_or_sections: Union[int, List[int]]):
 
     This is equivalent to torch.tensor_split with dim=2 for 3D+ tensors.
     Returns a tuple of views (zero-copy).
+
+    Note: This is a view operator that delegates to torch.split/tensor_split.
+    No custom Triton kernel is needed as it achieves zero-copy semantics
+    by sharing storage with the original tensor.
     """
     logger.debug("GEMS DSPLIT")
 
