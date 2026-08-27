@@ -38,8 +38,7 @@ def test__pad_enum_constant(shape, value, dtype):
 
     ref_inp = utils.to_reference(inp)
     ref_out = torch.ops.aten._pad_enum(ref_inp, pad, 3, value)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._pad_enum(inp, pad, 3, value)
+    res_out = flag_gems.ops._pad_enum(inp, pad, 3, value)
 
     utils.gems_assert_equal(res_out, ref_out)
 
@@ -57,8 +56,7 @@ def test__pad_enum_reflect(shape_pad, dtype):
 
     ref_inp = utils.to_reference(inp)
     ref_out = torch.ops.aten._pad_enum(ref_inp, pad, 0, None)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._pad_enum(inp, pad, 0, None)
+    res_out = flag_gems.ops._pad_enum(inp, pad, 0, None)
 
     utils.gems_assert_equal(res_out, ref_out)
 
@@ -75,8 +73,7 @@ def test__pad_enum_replicate(shape_pad, dtype):
 
     ref_inp = utils.to_reference(inp)
     ref_out = torch.ops.aten._pad_enum(ref_inp, pad, 1, None)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._pad_enum(inp, pad, 1, None)
+    res_out = flag_gems.ops._pad_enum(inp, pad, 1, None)
 
     utils.gems_assert_equal(res_out, ref_out)
 
@@ -94,7 +91,6 @@ def test__pad_enum_circular(shape_pad, dtype):
 
     ref_inp = utils.to_reference(inp)
     ref_out = torch.ops.aten._pad_enum(ref_inp, pad, 2, None)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._pad_enum(inp, pad, 2, None)
+    res_out = flag_gems.ops._pad_enum(inp, pad, 2, None)
 
     utils.gems_assert_equal(res_out, ref_out)
