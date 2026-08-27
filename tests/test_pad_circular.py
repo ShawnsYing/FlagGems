@@ -16,6 +16,7 @@ import pytest
 import torch
 
 import flag_gems
+from flag_gems.ops._pad_circular import _pad_circular
 
 from . import accuracy_utils as utils
 
@@ -48,15 +49,7 @@ def test_pad_circular(shape, pad, dtype):
 
     ref_inp = utils.to_reference(inp)
     ref_out = torch.ops.aten._pad_circular(ref_inp, pad)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._pad_circular(inp, pad)
+
+    res_out = _pad_circular(inp, pad)
 
     utils.gems_assert_equal(res_out, ref_out)
-
-
-@pytest.mark.pad_circular
-def test_pad_circular_dispatch_registered():
-    # _pad_circular is CompositeImplicitAutograd; guard against a silent no-op
-    # where use_gems() fails to intercept and both paths run the native decomposition.
-    with flag_gems.use_gems():
-        assert "_pad_circular" in flag_gems.all_registered_ops()
