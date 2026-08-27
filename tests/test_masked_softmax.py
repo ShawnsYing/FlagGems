@@ -85,6 +85,10 @@ def test_masked_softmax_dispatch():
 
     x = torch.randn((32, 64), dtype=torch.float32, device=flag_gems.device)
     mask = torch.randint(0, 2, (32, 64), dtype=torch.bool, device=flag_gems.device)
-    ref_out = torch.ops.aten._masked_softmax(x, mask, -1, 2)
+
+    ref_x = utils.to_reference(x)
+    ref_mask = utils.to_reference(mask)
+    ref_out = torch.ops.aten._masked_softmax(ref_x, ref_mask, -1, 2)
+
     res_out = flag_gems._masked_softmax(x, mask, -1, 2)
     utils.gems_assert_close(res_out, ref_out, torch.float32, equal_nan=True)
