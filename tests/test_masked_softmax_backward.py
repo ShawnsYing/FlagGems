@@ -16,6 +16,7 @@ import pytest
 import torch
 
 import flag_gems
+from flag_gems.ops._masked_softmax_backward import _masked_softmax_backward
 
 from . import accuracy_utils as utils
 from . import conftest as cfg
@@ -56,16 +57,16 @@ def test_masked_softmax_backward(shape_dim, dtype):
     output = torch.where(mask, torch.zeros_like(output), output)
     grad_output = torch.randn(shape, dtype=dtype, device=flag_gems.device)
 
+    # Reference runs in fp64 (on CPU under --ref=cpu); move every operand,
+    # including the boolean mask, onto the reference device to stay consistent.
     ref_grad_output = utils.to_reference(grad_output, True)
     ref_output = utils.to_reference(output, True)
+    ref_mask = utils.to_reference(mask)
     ref_grad_input = _reference_masked_softmax_backward(
-        ref_grad_output, ref_output, mask, dim
+        ref_grad_output, ref_output, ref_mask, dim
     )
 
-    with flag_gems.use_gems():
-        res_grad_input = torch.ops.aten._masked_softmax_backward(
-            grad_output, output, mask, dim
-        )
+    res_grad_input = _masked_softmax_backward(grad_output, output, mask, dim)
 
     utils.gems_assert_close(
         res_grad_input, ref_grad_input, dtype, reduce_dim=shape[dim]
