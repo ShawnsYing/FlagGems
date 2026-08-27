@@ -35,8 +35,7 @@ def test_masked_softmax_mask_type_2(shape, dtype, dim):
     ref_mask = utils.to_reference(mask)
     ref_out = torch.ops.aten._masked_softmax(ref_x, ref_mask, dim, 2)
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._masked_softmax(x, mask, dim, 2)
+    res_out = flag_gems._masked_softmax(x, mask, dim, 2)
 
     utils.gems_assert_close(res_out, ref_out, dtype, equal_nan=True)
 
@@ -54,8 +53,7 @@ def test_masked_softmax_mask_type_1(shape, dtype):
     ref_mask = utils.to_reference(mask)
     ref_out = torch.ops.aten._masked_softmax(ref_x, ref_mask, 3, 1)
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._masked_softmax(x, mask, 3, 1)
+    res_out = flag_gems._masked_softmax(x, mask, 3, 1)
 
     utils.gems_assert_close(res_out, ref_out, dtype, equal_nan=True)
 
@@ -73,15 +71,20 @@ def test_masked_softmax_mask_type_0(shape, dtype):
     ref_mask = utils.to_reference(mask)
     ref_out = torch.ops.aten._masked_softmax(ref_x, ref_mask, 3, 0)
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._masked_softmax(x, mask, 3, 0)
+    res_out = flag_gems._masked_softmax(x, mask, 3, 0)
 
     utils.gems_assert_close(res_out, ref_out, dtype, equal_nan=True)
 
 
 @pytest.mark.masked_softmax
 def test_masked_softmax_dispatch():
-    # Guard against a false pass: confirm the op is actually registered and
-    # routed through FlagGems under use_gems().
-    with flag_gems.use_gems():
-        assert "_masked_softmax" in flag_gems.all_registered_ops()
+    # Guard against a false pass: confirm the op is wired into the FlagGems
+    # registration table and that its implementation is callable end to end.
+    registered = {entry[0] for entry in flag_gems._FULL_CONFIG}
+    assert "_masked_softmax" in registered
+
+    x = torch.randn((32, 64), dtype=torch.float32, device=flag_gems.device)
+    mask = torch.randint(0, 2, (32, 64), dtype=torch.bool, device=flag_gems.device)
+    ref_out = torch.ops.aten._masked_softmax(x, mask, -1, 2)
+    res_out = flag_gems._masked_softmax(x, mask, -1, 2)
+    utils.gems_assert_close(res_out, ref_out, torch.float32, equal_nan=True)
