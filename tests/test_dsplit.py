@@ -52,11 +52,7 @@ def test_accuracy_dsplit(shape, indices_or_sections):
     else:
         ref_out = torch.ops.aten.dsplit.array(ref_inp, indices_or_sections)
 
-    with flag_gems.use_gems():
-        if isinstance(indices_or_sections, int):
-            res_out = torch.ops.aten.dsplit.int(inp, indices_or_sections)
-        else:
-            res_out = torch.ops.aten.dsplit.array(inp, indices_or_sections)
+    res_out = flag_gems.dsplit(inp, indices_or_sections)
 
     assert len(res_out) == len(
         ref_out
