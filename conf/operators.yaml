@@ -2496,8 +2496,6 @@ ops:
       - Tensor
     stages:
       - alpha: '5.4'
-    device:
-      - nvidia
   - id: dequantize
     description: >
       Returns an fp32 Tensor by dequantizing a quantized Tensor.
