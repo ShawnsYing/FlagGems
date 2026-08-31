@@ -48,11 +48,8 @@ def test__linalg_slogdet(shape, dtype):
     # Compute reference via the public 2-output slogdet.
     ref_sign, ref_logabsdet = torch.linalg.slogdet(ref_A)
 
-    # Compute with FlagGems via the aten 4-output overload.
-    with flag_gems.use_gems():
-        res_sign, res_logabsdet, _res_lu, _res_pivots = torch.ops.aten._linalg_slogdet(
-            A
-        )
+    # Compute with FlagGems via the aten 4-output overload (directly, no use_gems).
+    res_sign, res_logabsdet, _res_lu, _res_pivots = torch.ops.aten._linalg_slogdet(A)
 
     # Compare sign
     utils.gems_assert_close(res_sign, ref_sign, dtype)
