@@ -60,8 +60,7 @@ def test_transpose_(shape, dim_pair, dtype):
     ref_out = torch.ops.aten.transpose_(ref_inp.clone(), dim0, dim1)
 
     inp1 = inp.clone()
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.transpose_(inp1, dim0, dim1)
+    res_out = flag_gems.transpose_(inp1, dim0, dim1)
 
     # transpose_ mutates self and returns self; verify return is the input.
     assert res_out is inp1
@@ -91,8 +90,7 @@ def test_transpose__same_dim(shape, dim0, dim1, dtype):
     ref_out = torch.ops.aten.transpose_(ref_inp.clone(), dim0, dim1)
 
     inp1 = inp.clone()
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.transpose_(inp1, dim0, dim1)
+    res_out = flag_gems.transpose_(inp1, dim0, dim1)
 
     assert res_out is inp1
     utils.gems_assert_equal(res_out, ref_out)
@@ -125,8 +123,7 @@ def test_transpose__non_contiguous(shape, dtype):
     ref_out = torch.ops.aten.transpose_(ref_inp.clone(), 0, -1)
 
     inp1 = inp.clone()
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.transpose_(inp1, 0, -1)
+    res_out = flag_gems.transpose_(inp1, 0, -1)
 
     assert res_out is inp1
     utils.gems_assert_equal(res_out, ref_out)
@@ -146,5 +143,5 @@ def test_transpose__non_contiguous(shape, dtype):
 )
 def test_transpose__invalid_dims(shape, dim0, dim1):
     inp = torch.randn(shape, device=flag_gems.device)
-    with flag_gems.use_gems(), pytest.raises(IndexError):
-        torch.ops.aten.transpose_(inp, dim0, dim1)
+    with pytest.raises(IndexError):
+        flag_gems.transpose_(inp, dim0, dim1)
