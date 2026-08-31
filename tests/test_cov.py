@@ -41,8 +41,7 @@ def test_cov(shape, dtype):
     inp = torch.randn(shape, dtype=dtype, device=flag_gems.device)
     ref_inp = utils.to_reference(inp, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp)
+    res_out = flag_gems.cov(inp)
 
     ref_out = torch.cov(ref_inp).to(dtype)
 
@@ -58,8 +57,7 @@ def test_cov_1d(dtype):
     # torch.cov returns a 0D scalar (the variance).
     inp = torch.randn(64, dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp)
+    res_out = flag_gems.cov(inp)
 
     ref_out = torch.cov(utils.to_reference(inp, upcast=True)).to(dtype)
 
@@ -75,8 +73,7 @@ def test_cov_correction(correction, dtype):
     inp = torch.randn((8, 64), dtype=dtype, device=flag_gems.device)
     ref_inp = utils.to_reference(inp, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp, correction=correction)
+    res_out = flag_gems.cov(inp, correction=correction)
 
     ref_out = torch.cov(ref_inp, correction=correction).to(dtype)
 
@@ -94,8 +91,7 @@ def test_cov_fweights(dtype):
     ref_inp = utils.to_reference(inp, upcast=True)
     ref_fweights = utils.to_reference(fweights)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp, fweights=fweights)
+    res_out = flag_gems.cov(inp, fweights=fweights)
 
     ref_out = torch.cov(ref_inp, fweights=ref_fweights).to(dtype)
 
@@ -113,8 +109,7 @@ def test_cov_aweights(dtype):
     ref_inp = utils.to_reference(inp, upcast=True)
     ref_aweights = utils.to_reference(aweights)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp, aweights=aweights)
+    res_out = flag_gems.cov(inp, aweights=aweights)
 
     ref_out = torch.cov(ref_inp, aweights=ref_aweights).to(dtype)
 
@@ -133,8 +128,7 @@ def test_cov_fweights_aweights(dtype):
     ref_fweights = utils.to_reference(fweights)
     ref_aweights = utils.to_reference(aweights)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp, fweights=fweights, aweights=aweights)
+    res_out = flag_gems.cov(inp, fweights=fweights, aweights=aweights)
 
     ref_out = torch.cov(ref_inp, fweights=ref_fweights, aweights=ref_aweights).to(dtype)
 
@@ -150,8 +144,7 @@ def test_cov_non_contiguous(dtype):
     inp = base[::2, ::2]
     ref_inp = utils.to_reference(inp, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.cov(inp)
+    res_out = flag_gems.cov(inp)
 
     ref_out = torch.cov(ref_inp).to(dtype)
 
