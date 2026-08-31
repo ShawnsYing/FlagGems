@@ -42,10 +42,9 @@ def test_scaled_dot_product_attention_math_for_mps(
     ref_output = utils.to_reference(ref_output.to(dtype))
     ref_weights = utils.to_reference(ref_weights.to(dtype))
 
-    with flag_gems.use_gems():
-        output, attn_weights = flag_gems._scaled_dot_product_attention_math_for_mps(
-            q, k, v, is_causal=is_causal
-        )
+    output, attn_weights = flag_gems._scaled_dot_product_attention_math_for_mps(
+        q, k, v, is_causal=is_causal
+    )
 
     # output and attn_weights both reduce over the key/sequence dimension
     # (softmax normalization + weighted value sum), so scale atol accordingly.
