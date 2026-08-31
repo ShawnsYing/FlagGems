@@ -53,8 +53,7 @@ def test_cosine_similarity_accuracy(shape, dim, dtype):
     ref_x2 = utils.to_reference(x2, True)
 
     ref_out = torch.cosine_similarity(ref_x1, ref_x2, dim=dim, eps=1e-8)
-    with flag_gems.use_gems():
-        res_out = torch.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
+    res_out = flag_gems.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
 
     reduce_dim = shape[dim]
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=reduce_dim)
@@ -81,8 +80,7 @@ def test_cosine_similarity_broadcast(x1_shape, x2_shape, dim, dtype):
     ref_x2 = utils.to_reference(x2, True)
 
     ref_out = torch.cosine_similarity(ref_x1, ref_x2, dim=dim, eps=1e-8)
-    with flag_gems.use_gems():
-        res_out = torch.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
+    res_out = flag_gems.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
 
     reduce_dim = torch.broadcast_shapes(x1_shape, x2_shape)[dim]
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=reduce_dim)
@@ -100,8 +98,7 @@ def test_cosine_similarity_eps_clamp(dtype):
     ref_x2 = utils.to_reference(x2, True)
 
     ref_out = torch.cosine_similarity(ref_x1, ref_x2, dim=1, eps=1e-8)
-    with flag_gems.use_gems():
-        res_out = torch.cosine_similarity(x1, x2, dim=1, eps=1e-8)
+    res_out = flag_gems.cosine_similarity(x1, x2, dim=1, eps=1e-8)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=8)
 
@@ -123,7 +120,6 @@ def test_cosine_similarity_fp64(shape, dim):
     ref_x2 = utils.to_reference(x2, True)
 
     ref_out = torch.cosine_similarity(ref_x1, ref_x2, dim=dim, eps=1e-8)
-    with flag_gems.use_gems():
-        res_out = torch.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
+    res_out = flag_gems.cosine_similarity(x1, x2, dim=dim, eps=1e-8)
 
     utils.gems_assert_close(res_out, ref_out, torch.float64, reduce_dim=shape[dim])
