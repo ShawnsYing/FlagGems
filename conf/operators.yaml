@@ -12469,6 +12469,21 @@ ops:
       - Tensor
     stages:
       - alpha: '5.1'
+  - id: transpose_
+    description: |
+      In-place transpose: swaps two dimensions of the tensor, mutating it in place
+      and returning it. This is a zero-copy view operation that swaps the sizes and
+      strides of the two specified dimensions via as_strided, matching the semantics
+      of aten::transpose_.
+    for:
+      - transpose_
+    labels:
+      - aten
+      - KernelGen
+    kind:
+      - Tensor
+    stages:
+      - alpha: '5.1'
   - id: tril
     description: |
       Returns the lower triangular part of an input matrix (or a batch of matrices) and
