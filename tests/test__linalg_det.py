@@ -37,8 +37,9 @@ def test_accuracy_linalg_det(shape, dtype):
     ref_inp = to_reference(inp, False)
 
     ref_result, ref_LU, ref_pivots = torch.ops.aten._linalg_det(ref_inp)
-    with flag_gems.use_gems():
-        res_result, res_LU, res_pivots = torch.ops.aten._linalg_det(inp)
+    # Call the FlagGems implementation directly (KernelGen tests must invoke
+    # the op via flag_gems.ops rather than the global dispatch override).
+    res_result, res_LU, res_pivots = flag_gems.ops._linalg_det(inp)
 
     # Check determinant is correct (the main output)
     gems_assert_close(res_result, ref_result, dtype)
