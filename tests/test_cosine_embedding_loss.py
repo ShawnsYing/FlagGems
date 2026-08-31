@@ -52,9 +52,6 @@ def test_cosine_embedding_loss(shape, dtype, reduction, margin):
         ref_inp1, ref_inp2, ref_target, margin, reduction
     )
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.cosine_embedding_loss(
-            inp1, inp2, target, margin, reduction
-        )
+    res_out = flag_gems.cosine_embedding_loss(inp1, inp2, target, margin, reduction)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
