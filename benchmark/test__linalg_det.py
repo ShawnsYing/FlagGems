@@ -1,11 +1,23 @@
 import pytest
 import torch
+from _pytest.mark.structures import Mark, MarkDecorator
 
 import flag_gems
 
 from . import base
 
 VENDOR = flag_gems.vendor_name
+
+# ``_linalg_det`` starts with an underscore, and ``pytest.mark`` refuses to
+# generate a marker via attribute access for such names. Register it directly
+# on the MarkGenerator so ``@pytest.mark._linalg_det`` and ``-m _linalg_det``
+# both work. The leading underscore is kept to disambiguate from the public
+# ``linalg_det`` (aten::linalg.det) operator id.
+setattr(
+    pytest.mark,
+    "_linalg_det",
+    MarkDecorator(Mark("_linalg_det", (), {}, _ispytest=True), _ispytest=True),
+)
 
 
 _LINALG_DET_SHAPES = [
@@ -30,7 +42,7 @@ class LinalgDetBenchmark(base.Benchmark):
             yield (A,)
 
 
-@pytest.mark.linalg_det
+@pytest.mark._linalg_det
 def test__linalg_det():
     def _torch_linalg_det(A):
         return torch.ops.aten._linalg_det(A)

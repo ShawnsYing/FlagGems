@@ -1,9 +1,21 @@
 import pytest
 import torch
+from _pytest.mark.structures import Mark, MarkDecorator
 
 import flag_gems
 
 from .accuracy_utils import gems_assert_close, gems_assert_equal, to_reference
+
+# ``_linalg_det`` starts with an underscore, and ``pytest.mark`` refuses to
+# generate a marker via attribute access for such names. Register it directly
+# on the MarkGenerator so ``@pytest.mark._linalg_det`` and ``-m _linalg_det``
+# both work. The leading underscore is kept to disambiguate from the public
+# ``linalg_det`` (aten::linalg.det) operator id.
+setattr(
+    pytest.mark,
+    "_linalg_det",
+    MarkDecorator(Mark("_linalg_det", (), {}, _ispytest=True), _ispytest=True),
+)
 
 
 def _compute_det_from_lu(lu_matrix, pivot_vec):
@@ -17,6 +29,7 @@ def _compute_det_from_lu(lu_matrix, pivot_vec):
     return lu_det * sign
 
 
+@pytest.mark._linalg_det
 @pytest.mark.parametrize("shape", [(3, 3), (4, 4), (5, 5), (2, 3, 3), (2, 2, 4, 4)])
 @pytest.mark.parametrize("dtype", [torch.float32])
 def test_accuracy_linalg_det(shape, dtype):
