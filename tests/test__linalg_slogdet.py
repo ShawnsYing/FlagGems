@@ -14,16 +14,27 @@
 
 import pytest
 import torch
+from _pytest.mark.structures import Mark, MarkDecorator
 
 import flag_gems
 
 from . import accuracy_utils as utils
 
+# ``_linalg_slogdet`` starts with an underscore, and ``pytest.mark`` refuses to
+# generate a marker via attribute access for such names. Register it directly
+# on the MarkGenerator so ``@pytest.mark._linalg_slogdet`` and ``-m
+# _linalg_slogdet`` both work.
+setattr(
+    pytest.mark,
+    "_linalg_slogdet",
+    MarkDecorator(Mark("_linalg_slogdet", (), {}, _ispytest=True), _ispytest=True),
+)
+
 # Define shapes for _linalg_slogdet (square matrices)
 SLOGDET_SHAPES = [(2, 3, 3), (4, 4), (8, 8), (16, 16), (32, 32)]
 
 
-@pytest.mark.underscore_linalg_slogdet
+@pytest.mark._linalg_slogdet
 @pytest.mark.parametrize("shape", SLOGDET_SHAPES)
 # _linalg_slogdet generated kernel only supports float32 on CUDA.
 @pytest.mark.parametrize("dtype", [torch.float32])
