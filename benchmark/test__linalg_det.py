@@ -42,7 +42,7 @@ class LinalgDetBenchmark(base.Benchmark):
             yield (A,)
 
 
-@pytest.mark._linalg_det
+@pytest.mark.underscore_linalg_det
 def test__linalg_det():
     def _torch_linalg_det(A):
         return torch.ops.aten._linalg_det(A)
