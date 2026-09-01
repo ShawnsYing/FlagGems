@@ -66,9 +66,8 @@ def test_embedding_bag(num_bags, embedding_dim, mode, dtype):
             ref_weight, ref_indices, ref_offsets, False, mode, False, ref_psw, False
         )[0]
     )
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.embedding_bag(
-            weight, indices, offsets, False, mode, False, per_sample_weights, False
-        )[0]
+    res_out = flag_gems.embedding_bag(
+        weight, indices, offsets, False, mode, False, per_sample_weights, False
+    )[0]
 
     utils.gems_assert_close(res_out, ref_out, dtype)
