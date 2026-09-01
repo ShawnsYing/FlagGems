@@ -41,8 +41,7 @@ def test_corrcoef(shape, dtype):
     inp = torch.randn(shape, dtype=dtype, device=flag_gems.device)
     ref_inp = utils.to_reference(inp, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.corrcoef(inp)
+    res_out = flag_gems.corrcoef(inp)
 
     ref_out = torch.corrcoef(ref_inp).to(dtype)
 
@@ -58,8 +57,7 @@ def test_corrcoef_1d(dtype):
     # variable with itself is 1.0.
     inp = torch.randn(64, dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.corrcoef(inp)
+    res_out = flag_gems.corrcoef(inp)
 
     ref_out = torch.corrcoef(utils.to_reference(inp, upcast=True)).to(dtype)
 
@@ -75,8 +73,7 @@ def test_corrcoef_non_contiguous(dtype):
     inp = base[::2, ::2]
     ref_inp = utils.to_reference(inp, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.corrcoef(inp)
+    res_out = flag_gems.corrcoef(inp)
 
     ref_out = torch.corrcoef(ref_inp).to(dtype)
 
