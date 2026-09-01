@@ -118,8 +118,7 @@ def test_det_random(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n)
 
@@ -134,8 +133,7 @@ def test_det_random_batch(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n)
 
@@ -152,8 +150,7 @@ def test_det_positive_definite(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n)
 
@@ -171,8 +168,7 @@ def test_det_negative_determinant(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
 
@@ -191,8 +187,7 @@ def test_det_diagonal(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n)
 
@@ -207,8 +202,7 @@ def test_det_singular(shape, dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
 
@@ -222,14 +216,12 @@ def test_det_empty(dtype):
         ref_A = utils.to_reference(A)
         ref_out = _ref_det(ref_A)
 
-        with flag_gems.use_gems():
-            res_out = torch.det(A)
+        res_out = flag_gems.det(A)
 
         utils.gems_assert_close(res_out, ref_out, dtype)
 
     A = torch.empty((0, 3, 3), dtype=dtype, device=flag_gems.device)
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
     assert res_out.shape == (0,)
     assert res_out.dtype == dtype
 
@@ -245,17 +237,15 @@ def test_det_non_contiguous(dtype):
     ref_A = utils.to_reference(A)
     ref_out = _ref_det(ref_A)
 
-    with flag_gems.use_gems():
-        res_out = torch.det(A)
+    res_out = flag_gems.det(A)
 
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=n)
 
 
 @pytest.mark.det
 def test_det_errors():
-    with flag_gems.use_gems():
-        with pytest.raises((RuntimeError, ValueError)):
-            torch.det(torch.randn(3, 4, device=flag_gems.device))
+    with pytest.raises((RuntimeError, ValueError)):
+        flag_gems.det(torch.randn(3, 4, device=flag_gems.device))
 
-        with pytest.raises((RuntimeError, ValueError)):
-            torch.det(torch.randn(3, device=flag_gems.device))
+    with pytest.raises((RuntimeError, ValueError)):
+        flag_gems.det(torch.randn(3, device=flag_gems.device))
