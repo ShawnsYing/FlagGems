@@ -19,7 +19,18 @@ from . import base, consts, utils
 
 
 def input_fn(shape, dtype, device):
-    inp = utils.generate_tensor_input(shape, dtype, device)
+    # Use well-conditioned input in [0.75, 1.25] rather than randn(). A running
+    # product of standard-normal values underflows to exactly 0.0 within a few
+    # dozen steps, so for long reduction axes (e.g. 4096 or 65536) most of the
+    # forward output becomes zero. aten::cumprod_backward has a global branch
+    # that abandons its fast vectorized path and runs a serial per-line
+    # zero-handling routine whenever any zero is present, which makes the eager
+    # baseline pathologically slow (hundreds to thousands of ms) and inflates
+    # the reported speedup into a meaningless artifact. Keeping the cumulative
+    # product O(1) exercises both implementations on their fast paths and yields
+    # a fair, reproducible comparison. Zero-handling correctness is covered by
+    # tests/test_cumprod.py::test_cumprod_backward.
+    inp = torch.rand(shape, dtype=dtype, device=device) * 0.5 + 0.75
     grad = utils.generate_tensor_input(shape, dtype, device)
     output = torch.cumprod(inp, dim=1)
     yield grad, inp, 1, output
