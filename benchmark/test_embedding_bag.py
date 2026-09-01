@@ -1,3 +1,17 @@
+# Copyright 2026, The FlagOS Contributors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import pytest
 import torch
 
@@ -5,14 +19,17 @@ from . import base, consts
 
 # embedding_bag benchmark
 # (num_bags, embedding_dim, num_weights, num_samples_per_bag_avg)
+# Shapes span the realistic range: the first few are tiny and launch-overhead
+# bound (torch's fused CUDA kernel wins there), while the larger bag/sample
+# counts are where the gather workload dominates and this kernel is faster.
 EMBEDDING_BAG_SHAPES = [
-    (8, 16, 50, 4),
-    (16, 32, 100, 4),
-    (32, 64, 100, 4),
-    (64, 128, 200, 4),
     (128, 256, 500, 4),
-    (256, 128, 500, 8),
-    (512, 256, 1000, 8),
+    (512, 256, 10000, 8),
+    (1024, 128, 10000, 16),
+    (2048, 256, 20000, 16),
+    (4096, 256, 50000, 32),
+    (8192, 512, 100000, 32),
+    (16384, 256, 100000, 16),
 ]
 
 
