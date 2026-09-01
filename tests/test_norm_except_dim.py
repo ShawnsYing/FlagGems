@@ -39,8 +39,7 @@ def test_norm_except_dim(shape, dtype):
     ref_inp = utils.to_reference(res_inp, True)
 
     ref_out = torch.norm_except_dim(ref_inp, 2, 0)
-    with flag_gems.use_gems():
-        res_out = torch.norm_except_dim(res_inp, 2, 0)
+    res_out = flag_gems.norm_except_dim(res_inp, 2, 0)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
 
@@ -55,8 +54,7 @@ def test_norm_except_dim_dim(dim, dtype):
     ref_inp = utils.to_reference(res_inp, True)
 
     ref_out = torch.norm_except_dim(ref_inp, 2, dim)
-    with flag_gems.use_gems():
-        res_out = torch.norm_except_dim(res_inp, 2, dim)
+    res_out = flag_gems.norm_except_dim(res_inp, 2, dim)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
 
@@ -71,7 +69,6 @@ def test_norm_except_dim_pow(pow, dtype):
     ref_inp = utils.to_reference(res_inp, True)
 
     ref_out = torch.norm_except_dim(ref_inp, pow, 0)
-    with flag_gems.use_gems():
-        res_out = torch.norm_except_dim(res_inp, pow, 0)
+    res_out = flag_gems.norm_except_dim(res_inp, pow, 0)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
