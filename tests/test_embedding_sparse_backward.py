@@ -62,10 +62,9 @@ def test_embedding_sparse_backward(
         scale_grad_by_freq,
     )
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.embedding_sparse_backward(
-            grad_output, indices, num_weights, padding_idx, scale_grad_by_freq
-        )
+    res_out = flag_gems.embedding_sparse_backward(
+        grad_output, indices, num_weights, padding_idx, scale_grad_by_freq
+    )
 
     assert res_out.is_sparse, "embedding_sparse_backward must return a sparse tensor."
     # COO output is uncoalesced with arbitrary ordering; compare dense forms.

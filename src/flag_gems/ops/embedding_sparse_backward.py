@@ -26,25 +26,30 @@ logger = logging.getLogger(__name__)
 
 
 @triton.jit
-def _gather_rows_kernel(
+def _masked_copy_rows_kernel(
     grad_output_ptr,  # (N, D)
-    positions_ptr,  # (nnz,) row index into grad_output for each output row
-    values_ptr,  # (nnz, D)
-    nnz,
+    indices_ptr,  # (N,)
+    values_ptr,  # (N, D)
+    padding_idx,
+    N,
     EMBED_DIM: tl.constexpr,
     BLOCK_D: tl.constexpr,
 ):
+    # One program handles one row. Every row is copied through, but rows whose
+    # index equals padding_idx are written as zeros. This keeps the launch grid
+    # static (N rows) so there is no data-dependent host synchronization, unlike
+    # a torch.nonzero() compaction — that sync is what tanked the padded shapes.
     pid_n = tl.program_id(0)
-    pid_d = tl.program_id(1)
-
-    if pid_n >= nnz:
+    if pid_n >= N:
         return
 
-    offs_d = pid_d * BLOCK_D + tl.arange(0, BLOCK_D)
+    offs_d = tl.arange(0, BLOCK_D)
     mask_d = offs_d < EMBED_DIM
 
-    src_row = tl.load(positions_ptr + pid_n)
-    go = tl.load(grad_output_ptr + src_row * EMBED_DIM + offs_d, mask=mask_d, other=0)
+    row_idx = tl.load(indices_ptr + pid_n)
+    go = tl.load(grad_output_ptr + pid_n * EMBED_DIM + offs_d, mask=mask_d, other=0)
+    keep = row_idx != padding_idx
+    go = tl.where(keep, go, 0.0)
     tl.store(values_ptr + pid_n * EMBED_DIM + offs_d, go, mask=mask_d)
 
 
@@ -85,31 +90,33 @@ def embedding_sparse_backward(
     N = idx.numel()
     assert go.shape[0] == N, "indices number must match grad_output rows."
 
-    # aten's sparse backward drops only rows whose index equals padding_idx and
-    # keeps every other row without accumulating duplicates, yielding an
-    # uncoalesced sparse COO tensor of shape (num_weights, D).
+    # aten's sparse backward emits one COO entry per grad row, dropping the ones
+    # whose index equals padding_idx, and does NOT accumulate duplicates. The
+    # result is an uncoalesced sparse COO tensor of shape (num_weights, D).
     if padding_idx is not None and padding_idx >= 0:
-        valid = idx != padding_idx
-        positions = torch.nonzero(valid, as_tuple=False).view(-1)
-        sparse_indices = idx.index_select(0, positions).view(1, -1)
-    else:
-        positions = torch.arange(N, device=device)
+        # Keep every row in place and zero the padding rows in a single Triton
+        # pass. A dropped row and an all-zero row densify identically, so this
+        # matches aten's dense-equivalent gradient while avoiding the host sync
+        # that a nonzero() compaction would force on every launch.
         sparse_indices = idx.view(1, -1)
-
-    nnz = positions.numel()
-    values = torch.empty((nnz, D), device=device, dtype=grad_output.dtype)
-
-    if nnz > 0:
-        BLOCK_D = 128
-        grid = (nnz, triton.cdiv(D, BLOCK_D))
-        _gather_rows_kernel[grid](
-            go,
-            positions,
-            values,
-            nnz,
-            EMBED_DIM=D,
-            BLOCK_D=BLOCK_D,
-        )
+        values = torch.empty((N, D), device=device, dtype=grad_output.dtype)
+        if N > 0:
+            BLOCK_D = triton.next_power_of_2(D)
+            _masked_copy_rows_kernel[(N,)](
+                go,
+                idx,
+                values,
+                padding_idx,
+                N,
+                EMBED_DIM=D,
+                BLOCK_D=BLOCK_D,
+            )
+    else:
+        # No padding: every grad row survives in order, so the flattened
+        # grad_output rows are exactly the COO values. Reuse them directly
+        # instead of copying into a fresh buffer.
+        sparse_indices = idx.view(1, -1)
+        values = go
 
     out = torch.sparse_coo_tensor(
         sparse_indices,
