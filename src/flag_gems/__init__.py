@@ -172,6 +172,7 @@ _FULL_CONFIG = (
     ("choose_qparams_optimized", choose_qparams_optimized),
     ("column_stack", column_stack),
     ("column_stack.out", column_stack_out),
+    ("cumulative_trapezoid.dx", cumulative_trapezoid),
     ("grid_sampler_3d_backward", grid_sampler_3d_backward),
     ("linalg_svdvals", linalg_svdvals),
     ("_log_softmax", log_softmax),
