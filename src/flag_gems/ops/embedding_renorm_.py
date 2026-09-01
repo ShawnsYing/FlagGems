@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @triton.jit(do_not_specialize=["max_norm", "norm_type"])
 def embedding_renorm_kernel(
     weight_ptr,  # pointer to the (num_embeddings, N) weight matrix
-    index_ptr,  # pointer to the unique row indices to renormalize
+    index_ptr,  # pointer to the sorted row indices to renormalize
     N,  # embedding dimension (row length)
     max_norm,  # maximum allowed row norm
     norm_type,  # order of the norm
@@ -37,52 +37,67 @@ def embedding_renorm_kernel(
 ):
     pid = tl.program_id(0).to(tl.int64)
     row = tl.load(index_ptr + pid).to(tl.int64)
-    row_start = weight_ptr + row * N
 
-    offset = tl.arange(0, BLOCK_SIZE)
-    mask = offset < N
+    # Indices are sorted, so a row appears in a contiguous run of programs.
+    # Only the first program of each run renormalizes the row; the rest exit.
+    # This deduplicates on-device (matching ATen's renorm-once semantics)
+    # without a host-synchronizing torch.unique, and avoids concurrent writers
+    # tearing the same row.
+    is_first = pid == 0
+    if not is_first:
+        prev = tl.load(index_ptr + pid - 1).to(tl.int64)
+        is_first = prev != row
 
-    x = tl.load(row_start + offset, mask=mask, other=0.0).to(tl.float32)
-    abs_x = tl.abs(x)
-    # p-norm: (sum |x|^p) ** (1/p). p == 2 (nn.Embedding's default) gets a
-    # sqrt fast path; other orders use exp(p * log|x|) to stay in-kernel.
-    is_l2 = norm_type == 2.0
-    powed = tl.where(
-        is_l2, x * x, tl.where(abs_x > 0.0, tl.exp(norm_type * tl.log(abs_x)), 0.0)
-    )
-    sum_pow = tl.sum(powed, axis=0)
-    norm = tl.where(
-        is_l2, tl.sqrt(sum_pow), tl.exp((1.0 / norm_type) * tl.log(sum_pow))
-    )
+    if is_first:
+        row_start = weight_ptr + row * N
+        offset = tl.arange(0, BLOCK_SIZE)
+        mask = offset < N
 
-    # Only rows whose norm exceeds max_norm are rescaled; eps matches ATen (1e-7).
-    if norm > max_norm:
-        scale = max_norm / (norm + 1e-7)
-        tl.store(row_start + offset, x * scale, mask=mask)
+        x = tl.load(row_start + offset, mask=mask, other=0.0).to(tl.float32)
+        abs_x = tl.abs(x)
+        # p-norm: (sum |x|^p) ** (1/p). p == 2 (nn.Embedding's default) gets a
+        # sqrt fast path; other orders use exp(p * log|x|) to stay in-kernel.
+        is_l2 = norm_type == 2.0
+        powed = tl.where(
+            is_l2, x * x, tl.where(abs_x > 0.0, tl.exp(norm_type * tl.log(abs_x)), 0.0)
+        )
+        sum_pow = tl.sum(powed, axis=0)
+        norm = tl.where(
+            is_l2, tl.sqrt(sum_pow), tl.exp((1.0 / norm_type) * tl.log(sum_pow))
+        )
+
+        # Only rows whose norm exceeds max_norm are rescaled; eps matches ATen (1e-7).
+        if norm > max_norm:
+            scale = max_norm / (norm + 1e-7)
+            tl.store(row_start + offset, x * scale, mask=mask)
 
 
 def embedding_renorm_(weight, indices, max_norm, norm_type):
     logger.debug("GEMS EMBEDDING_RENORM_")
     assert weight.dim() == 2, "embedding_renorm_ expects a 2D weight matrix"
 
-    # ATen renormalizes each embedding row at most once, so duplicate indices
-    # must be collapsed before launching the kernel.
-    unique_indices = torch.unique(indices.flatten())
-    num_rows = unique_indices.numel()
+    # ATen renormalizes each embedding row at most once. Rather than collapse
+    # duplicates with a host-synchronizing torch.unique (which dominated the
+    # runtime), sort the indices on-device so equal rows are adjacent and let
+    # the kernel keep only the first occurrence of each row.
+    flat_indices = indices.flatten()
+    num_idx = flat_indices.numel()
     N = weight.shape[1]
 
-    if num_rows == 0 or N == 0:
+    if num_idx == 0 or N == 0:
         return weight
 
-    # One program per row loads the whole embedding row, so the block must
+    sorted_indices, _ = torch.sort(flat_indices)
+
+    # One program per index loads the whole embedding row, so the block must
     # span N. Cap at 64K to stay within Triton's per-program element budget.
     BLOCK_SIZE = min(triton.next_power_of_2(N), 65536)
 
-    grid = (num_rows,)
+    grid = (num_idx,)
     with torch_device_fn.device(weight.device):
         embedding_renorm_kernel[grid](
             weight,
-            unique_indices,
+            sorted_indices,
             N,
             float(max_norm),
             float(norm_type),
