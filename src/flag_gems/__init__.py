@@ -121,6 +121,7 @@ _FULL_CONFIG = (
     ),
     ("_nested_view_from_buffer_copy", _nested_view_from_buffer_copy),
     ("_pdist_backward", _pdist_backward),
+    ("_sobol_engine_initialize_state_", _sobol_engine_initialize_state_),
     ("_prelu_kernel", _prelu_kernel),
     ("_prelu_kernel_backward", _prelu_kernel_backward),
     ("_resize_output", _resize_output),
