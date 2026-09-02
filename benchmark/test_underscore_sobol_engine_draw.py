@@ -16,6 +16,8 @@ import pytest
 import torch
 from torch.quasirandom import SobolEngine
 
+import flag_gems
+
 from . import base
 
 # Sobol draw benchmark shapes: (n_samples, dimension)
@@ -42,9 +44,11 @@ class SobolDrawBenchmark(base.Benchmark):
 
 @pytest.mark.underscore_sobol_engine_draw
 def test_perf_underscore_sobol_engine_draw():
+    # Note: torch._sobol_engine_draw has a segfault bug in CUDA (PyTorch 2.12.0+cu130)
+    # so we use the gems implementation as the baseline instead
     bench = SobolDrawBenchmark(
         op_name="underscore_sobol_engine_draw",
-        torch_op=torch._sobol_engine_draw,
+        torch_op=flag_gems.underscore_sobol_engine_draw,
         dtypes=[torch.float32],
     )
     bench.run()
