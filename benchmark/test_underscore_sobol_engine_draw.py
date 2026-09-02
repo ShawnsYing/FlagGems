@@ -18,22 +18,33 @@ from torch.quasirandom import SobolEngine
 
 from . import base
 
+# Sobol draw benchmark shapes: (n_samples, dimension)
+SOBOL_SHAPES = [
+    (100, 2),
+    (1000, 3),
+    (10000, 5),
+    (100000, 3),
+]
+
+
+class SobolDrawBenchmark(base.Benchmark):
+    def set_shapes(self, shape_file_path=None):
+        self.shapes = SOBOL_SHAPES
+
+    def get_input_iter(self, cur_dtype):
+        for n, dimension in self.shapes:
+            eng = SobolEngine(dimension=dimension, scramble=False)
+            quasi = eng.quasi.to(device=self.device)
+            sobolstate = eng.sobolstate.to(device=self.device)
+            num_generated = 0
+            yield (quasi, n, sobolstate, dimension, num_generated, cur_dtype)
+
 
 @pytest.mark.underscore_sobol_engine_draw
 def test_perf_underscore_sobol_engine_draw():
-    def sobol_draw_setup(n: int, dimension: int):
-        eng = SobolEngine(dimension=dimension, scramble=False)
-        quasi = eng.quasi.cuda()
-        sobolstate = eng.sobolstate.cuda()
-        num_generated = 0
-        dtype = torch.float32
-        return quasi, n, sobolstate, dimension, num_generated, dtype
-
-    bench = base.Benchmark(
+    bench = SobolDrawBenchmark(
         op_name="underscore_sobol_engine_draw",
         torch_op=torch._sobol_engine_draw,
-        arg_func=sobol_draw_setup,
         dtypes=[torch.float32],
-        kwargs_func=lambda n, dimension: {"dtype": torch.float32},
     )
-    bench.run([(100, 2), (1000, 3), (10000, 5), (100000, 3)])
+    bench.run()
