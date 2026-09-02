@@ -6,7 +6,7 @@ import flag_gems
 from .accuracy_utils import gems_assert_close, to_reference
 
 
-@pytest.mark._sobol_engine_scramble_
+@pytest.mark.sobol_engine_scramble
 @pytest.mark.parametrize("dimension", [1, 2, 3, 5, 10, 20])
 def test_sobol_engine_scramble_(dimension):
     """Test _sobol_engine_scramble_ in-place operator."""
@@ -27,9 +27,8 @@ def test_sobol_engine_scramble_(dimension):
     # Reference computation
     ref_out = torch._sobol_engine_scramble_(ref_sobolstate, ref_ltm, dimension)
 
-    # FlagGems computation
-    with flag_gems.use_gems():
-        res_out = torch._sobol_engine_scramble_(sobolstate, ltm, dimension)
+    # FlagGems computation (no use_gems() for KernelGen operators)
+    res_out = torch._sobol_engine_scramble_(sobolstate, ltm, dimension)
 
     # Verify the mutated input matches reference
     gems_assert_close(sobolstate, ref_sobolstate, dtype=torch.long)
