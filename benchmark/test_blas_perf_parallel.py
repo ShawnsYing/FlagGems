@@ -114,6 +114,25 @@ class BlasBenchmark(Benchmark):
         self.input_fn = input_fn
 
     def get_input_iter(self, cur_dtype) -> Generator:
+        if self.op_name == "mm" and Config.mm_layout is not None:
+            layouts = {
+                "nn": (False,),
+                "nt": (True,),
+                "both": (False, True),
+            }[Config.mm_layout]
+            for b_column_major in layouts:
+                for b, m, n, k in self.shapes:
+                    yield from self.input_fn(
+                        b,
+                        m,
+                        n,
+                        k,
+                        cur_dtype,
+                        self.device,
+                        b_column_major,
+                    )
+            return
+
         for b, m, n, k in self.shapes:
             yield from self.input_fn(b, m, n, k, cur_dtype, self.device, False)
 
@@ -203,7 +222,7 @@ class GroupmmBenchmark(BlasBenchmark):
     def get_tflops(self, op, *args, **kwargs):
         groups, N, K = args[1].shape
         size_per_group = torch.diff(
-            args[2], prepend=torch.zeros(1, device="cuda", dtype=torch.int32)
+            args[2], prepend=torch.zeros(1, device=args[2].device, dtype=torch.int32)
         )
         total_flops = 0
         for i in range(groups):
@@ -366,8 +385,8 @@ def group_mm_input_fn(groups, N, K, cur_dtype, device):
         M_g = random.randint(1, 16384)
         N_g = N
         K_g = K
-        A_g = torch.rand([M_g, K_g], device="cuda", dtype=cur_dtype)
-        B_g = torch.rand([K_g, N_g], device="cuda", dtype=cur_dtype)
+        A_g = torch.rand([M_g, K_g], device=device, dtype=cur_dtype)
+        B_g = torch.rand([K_g, N_g], device=device, dtype=cur_dtype)
         group_A_list.append(A_g)
         group_B_list.append(B_g)
         M_list.append(M_g)
@@ -377,7 +396,7 @@ def group_mm_input_fn(groups, N, K, cur_dtype, device):
     mat_a = torch.cat([x for x in group_A_list], dim=0)
     mat_b = torch.stack([x for x in group_B_list], dim=0)
     offs = torch.tensor(
-        [sum(M_list[: i + 1]) for i in range(groups)], dtype=torch.int32, device="cuda"
+        [sum(M_list[: i + 1]) for i in range(groups)], dtype=torch.int32, device=device
     )
 
     yield mat_a, mat_b, offs
@@ -550,11 +569,26 @@ def _parallel_device_count():
 
 
 def _parallel_visible_devices_env():
+    if flag_gems.vendor_name == "metax":
+        return "MACA_VISIBLE_DEVICES"
     env_name_map = {
         "cuda": "CUDA_VISIBLE_DEVICES",
         "musa": "MUSA_VISIBLE_DEVICES",
     }
     return env_name_map.get(flag_gems.device)
+
+
+def _parallel_device_ids():
+    visible_devices_env = _parallel_visible_devices_env()
+    if visible_devices_env:
+        configured_devices = os.environ.get(visible_devices_env, "")
+        if configured_devices:
+            return [
+                device.strip()
+                for device in configured_devices.split(",")
+                if device.strip()
+            ]
+    return [str(device) for device in range(_parallel_device_count())]
 
 
 def _parallel_device_label():
@@ -645,6 +679,11 @@ class ParallelBenchmarkMixin:
             else:
                 if self.op_name == "zero_":
                     with flag_gems.use_gems():
+                        metric.latency = self.get_latency(
+                            self.torch_op, *args, **kwargs
+                        )
+                elif self.op_name in ("mm", "mm_out"):
+                    with flag_gems.use_gems(include=[self.op_name]):
                         metric.latency = self.get_latency(
                             self.torch_op, *args, **kwargs
                         )
@@ -862,6 +901,8 @@ class ParallelBenchmarkMixin:
         if Config.user_desired_metrics:
             for metric in Config.user_desired_metrics:
                 cmd.extend(["--metrics", metric])
+        if Config.mm_layout is not None:
+            cmd.extend(["--mm-layout", Config.mm_layout])
 
         env = os.environ.copy()
         visible_devices_env = _parallel_visible_devices_env()
@@ -870,6 +911,11 @@ class ParallelBenchmarkMixin:
                 f"--parallel is not supported on device type '{flag_gems.device}'."
             )
         env[visible_devices_env] = str(gpu_id)
+        if flag_gems.vendor_name == "metax":
+            # mcPytorch prefers MACA_VISIBLE_DEVICES while vLLM-MetaX and some
+            # helper processes use CUDA_VISIBLE_DEVICES. Keep both consistent.
+            env["MACA_VISIBLE_DEVICES"] = str(gpu_id)
+            env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
         env[PARALLEL_WORKER_ENV] = "1"
         env[PARALLEL_RESULT_FILE_ENV] = tmp_result_path
 
@@ -899,7 +945,8 @@ class ParallelBenchmarkMixin:
             return self._run_inputs(self.get_input_iter(dtype))
         if not _parallel_device_is_available():
             pytest.skip(f"--parallel N requires {_parallel_device_label()}.")
-        available_gpus = _parallel_device_count()
+        device_ids = _parallel_device_ids()
+        available_gpus = min(_parallel_device_count(), len(device_ids))
         if available_gpus < required_gpus:
             pytest.skip(
                 "--parallel requires at least "
@@ -920,7 +967,7 @@ class ParallelBenchmarkMixin:
         merged_metrics = []
         future_to_chunk = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(shape_chunks)) as ex:
-            for gpu_id, shape_chunk in enumerate(shape_chunks):
+            for gpu_id, shape_chunk in zip(device_ids, shape_chunks):
                 future = ex.submit(
                     self._run_parallel_worker_subprocess,
                     node_id=node_id,
@@ -1003,6 +1050,8 @@ class ParallelBenchmarkMixin:
 
 class ParallelBlasBenchmark(ParallelBenchmarkMixin, BlasBenchmark):
     def get_parallel_metric_group_size(self, shape):
+        if self.op_name == "mm" and Config.mm_layout is not None:
+            return 2 if Config.mm_layout == "both" else 1
         if Config.bench_level == BenchLevel.COMPREHENSIVE:
             return 2
         return 1
