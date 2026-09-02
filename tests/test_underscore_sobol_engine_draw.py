@@ -19,6 +19,7 @@ from torch.quasirandom import SobolEngine
 import flag_gems
 
 
+@pytest.mark.underscore_sobol_engine_draw
 @pytest.mark.parametrize("n", [10, 100, 1000])
 @pytest.mark.parametrize("dimension", [2, 5, 10, 20])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
@@ -58,6 +59,7 @@ def test_accuracy_underscore_sobol_engine_draw(n, dimension, dtype):
     assert torch.equal(quasi_gems.cpu(), quasi_ref)
 
 
+@pytest.mark.underscore_sobol_engine_draw
 @pytest.mark.parametrize("num_generated", [0, 10, 100])
 def test_accuracy_underscore_sobol_engine_draw_with_offset(num_generated):
     # Test with non-zero num_generated
@@ -102,6 +104,7 @@ def test_accuracy_underscore_sobol_engine_draw_with_offset(num_generated):
     assert torch.equal(quasi_gems.cpu(), quasi_ref)
 
 
+@pytest.mark.underscore_sobol_engine_draw
 def test_accuracy_underscore_sobol_engine_draw_edge_cases():
     # Test edge cases
     dimension = 1
@@ -124,6 +127,7 @@ def test_accuracy_underscore_sobol_engine_draw_edge_cases():
     assert torch.equal(quasi_gems.cpu(), quasi_ref)
 
 
+@pytest.mark.underscore_sobol_engine_draw
 def test_accuracy_underscore_sobol_engine_draw_large():
     # Test larger dimensions
     n = 500

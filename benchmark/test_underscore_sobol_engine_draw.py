@@ -12,32 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import torch
 from torch.quasirandom import SobolEngine
 
-from .performance_utils import Benchmark
+from . import base
 
 
+@pytest.mark.underscore_sobol_engine_draw
 def test_perf_underscore_sobol_engine_draw():
-    def underscore_sobol_engine_draw_args(n, dimension, dtype):
+    def sobol_draw_setup(n: int, dimension: int):
         eng = SobolEngine(dimension=dimension, scramble=False)
         quasi = eng.quasi.cuda()
         sobolstate = eng.sobolstate.cuda()
         num_generated = 0
-        return (quasi, n, sobolstate, dimension, num_generated), {"dtype": dtype}
+        dtype = torch.float32
+        return quasi, n, sobolstate, dimension, num_generated, dtype
 
-    bench = Benchmark(
+    bench = base.Benchmark(
         op_name="underscore_sobol_engine_draw",
-        arg_func=underscore_sobol_engine_draw_args,
-        dtypes=[torch.float32, torch.float64],
-        shape_args=[
-            (100, 2),
-            (1000, 5),
-            (5000, 10),
-            (10000, 3),
-            (10000, 10),
-            (50000, 5),
-            (100000, 3),
-        ],
+        torch_op=torch._sobol_engine_draw,
+        arg_func=sobol_draw_setup,
+        dtypes=[torch.float32],
+        kwargs_func=lambda n, dimension: {"dtype": torch.float32},
     )
-    bench.run()
+    bench.run([(100, 2), (1000, 3), (10000, 5), (100000, 3)])
