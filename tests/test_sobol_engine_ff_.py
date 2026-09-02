@@ -50,5 +50,5 @@ def test_sobol_engine_ff_(dimension, n, num_generated):
         quasi_gems, n, sobolstate_gems, dimension, num_generated
     )
 
-    # Compare results (move reference to device for comparison)
-    utils.gems_assert_equal(res_out, quasi_ref.to(flag_gems.device))
+    # Compare results
+    utils.gems_assert_equal(res_out, quasi_ref)
