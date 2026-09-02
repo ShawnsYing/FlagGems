@@ -50,5 +50,7 @@ def test_sobol_engine_ff_(dimension, n, num_generated):
         quasi_gems, n, sobolstate_gems, dimension, num_generated
     )
 
-    # Compare results
-    utils.gems_assert_equal(res_out, quasi_ref)
+    # The native aten op only supports CPU (it segfaults on CUDA), so the
+    # reference is computed on CPU. Move the gems result to CPU so both
+    # tensors share the same device in every CI mode.
+    utils.gems_assert_equal(res_out.cpu(), quasi_ref)
