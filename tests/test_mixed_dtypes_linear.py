@@ -6,7 +6,7 @@ import flag_gems
 from . import accuracy_utils as utils
 
 # FP16/BF16 only: CUDA quantized matmul requires half-precision activation (no float32 support)
-MIXED_DTYPES_LINEAR_DTYPES = [torch.float16, torch.bfloat16]
+MIXED_DTYPES_LINEAR_DTYPES = [d for d in utils.FLOAT_DTYPES if d != torch.float32]
 
 
 # Representative shapes covering int8/int4, with/without bias, various activations.
@@ -41,10 +41,9 @@ def test_mixed_dtypes_linear(M, K, N, mode, has_bias, activation, dtype):
     ref_scale = utils.to_reference(scale, False)
     ref_bias = utils.to_reference(bias, False) if bias is not None else None
 
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten._mixed_dtypes_linear(
-            input_tensor, weight, scale, bias=bias, activation=activation
-        )
+    res_out = flag_gems.mixed_dtypes_linear(
+        input_tensor, weight, scale, bias=bias, activation=activation
+    )
 
     ref_out = _ref_mixed_dtypes_linear(
         ref_input, ref_weight, ref_scale, mode, ref_bias, activation

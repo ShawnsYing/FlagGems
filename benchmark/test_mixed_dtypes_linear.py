@@ -1,11 +1,13 @@
 import pytest
 import torch
 
+import flag_gems
+
 from . import base
-from .consts import BenchmarkMetrics
+from .consts import FLOAT_DTYPES, BenchmarkMetrics
 
 # FP16/BF16 only: CUDA quantized matmul requires half-precision activation (no float32 support)
-FP16_BF16_DTYPES = [torch.float16, torch.bfloat16]
+FP16_BF16_DTYPES = [d for d in FLOAT_DTYPES if d != torch.float32]
 
 
 # LLM-scale shapes: (M, K, N, mode, has_bias, activation)
@@ -28,7 +30,7 @@ class MixedDtypesLinearBenchmark(base.Benchmark):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gems_op = lambda inp, w, s, b, act: torch.ops.aten._mixed_dtypes_linear(
+        self.gems_op = lambda inp, w, s, b, act: flag_gems.mixed_dtypes_linear(
             inp, w, s, bias=b, activation=act
         )
 
