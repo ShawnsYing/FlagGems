@@ -204,7 +204,7 @@ def hamming_window_periodic_alpha(
     if window_length == 1:
         return torch.fill(out, 1.0)
 
-    # beta derived from alpha: beta = 1 - alpha
+    # PyTorch uses a fixed beta of 0.46 regardless of the alpha argument.
     beta = 0.46
 
     full_length = window_length + 1 if periodic else window_length
