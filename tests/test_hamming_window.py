@@ -32,12 +32,11 @@ def test_hamming_window(window_length, dtype):
         dtype=dtype,
         device=device,
     )
-    with flag_gems.use_gems():
-        res_out = torch.hamming_window(
-            window_length,
-            dtype=dtype,
-            device=device,
-        )
+    res_out = flag_gems.hamming_window(
+        window_length,
+        dtype=dtype,
+        device=device,
+    )
 
     utils.gems_assert_close(res_out, ref_out, dtype=dtype)
 
@@ -56,13 +55,12 @@ def test_hamming_window_periodic(window_length, periodic, dtype):
         dtype=dtype,
         device=device,
     )
-    with flag_gems.use_gems():
-        res_out = torch.hamming_window(
-            window_length,
-            periodic=periodic,
-            dtype=dtype,
-            device=device,
-        )
+    res_out = flag_gems.hamming_window_periodic(
+        window_length,
+        periodic=periodic,
+        dtype=dtype,
+        device=device,
+    )
 
     utils.gems_assert_close(res_out, ref_out, dtype=dtype)
 
@@ -82,14 +80,13 @@ def test_hamming_window_periodic_alpha(window_length, periodic, alpha, dtype):
         dtype=dtype,
         device=device,
     )
-    with flag_gems.use_gems():
-        res_out = torch.hamming_window(
-            window_length,
-            periodic=periodic,
-            alpha=alpha,
-            dtype=dtype,
-            device=device,
-        )
+    res_out = flag_gems.hamming_window_periodic_alpha(
+        window_length,
+        periodic=periodic,
+        alpha=alpha,
+        dtype=dtype,
+        device=device,
+    )
 
     utils.gems_assert_close(res_out, ref_out, dtype=dtype)
 
@@ -113,14 +110,13 @@ def test_hamming_window_periodic_alpha_beta(
         dtype=dtype,
         device=device,
     )
-    with flag_gems.use_gems():
-        res_out = torch.hamming_window(
-            window_length,
-            periodic=periodic,
-            alpha=alpha,
-            beta=beta,
-            dtype=dtype,
-            device=device,
-        )
+    res_out = flag_gems.hamming_window_periodic_alpha_beta(
+        window_length,
+        periodic=periodic,
+        alpha=alpha,
+        beta=beta,
+        dtype=dtype,
+        device=device,
+    )
 
     utils.gems_assert_close(res_out, ref_out, dtype=dtype)
