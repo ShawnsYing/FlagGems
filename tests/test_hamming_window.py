@@ -26,7 +26,7 @@ from . import conftest as cfg
 @pytest.mark.parametrize("dtype", utils.FLOAT_DTYPES)
 def test_hamming_window(window_length, dtype):
     # periodic defaults to True; exercises the aten::hamming_window overload.
-    device = flag_gems.device
+    device = "cpu" if cfg.TO_CPU else flag_gems.device
     ref_out = torch.hamming_window(
         window_length,
         dtype=dtype,
@@ -48,7 +48,7 @@ def test_hamming_window(window_length, dtype):
 def test_hamming_window_periodic(window_length, periodic, dtype):
     # Passing an explicit periodic flag exercises the
     # aten::hamming_window.periodic overload.
-    device = flag_gems.device
+    device = "cpu" if cfg.TO_CPU else flag_gems.device
     ref_out = torch.hamming_window(
         window_length,
         periodic=periodic,
@@ -72,7 +72,7 @@ def test_hamming_window_periodic(window_length, periodic, dtype):
 @pytest.mark.parametrize("dtype", utils.FLOAT_DTYPES)
 def test_hamming_window_periodic_alpha(window_length, periodic, alpha, dtype):
     # Exercises the aten::hamming_window.periodic_alpha overload.
-    device = flag_gems.device
+    device = "cpu" if cfg.TO_CPU else flag_gems.device
     ref_out = torch.hamming_window(
         window_length,
         periodic=periodic,
@@ -101,7 +101,7 @@ def test_hamming_window_periodic_alpha_beta(
     window_length, periodic, alpha, beta, dtype
 ):
     # Exercises the aten::hamming_window.periodic_alpha_beta overload.
-    device = flag_gems.device
+    device = "cpu" if cfg.TO_CPU else flag_gems.device
     ref_out = torch.hamming_window(
         window_length,
         periodic=periodic,
