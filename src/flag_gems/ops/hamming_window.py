@@ -90,6 +90,17 @@ def hamming_window(
     if device is None:
         device = torch.device(runtime.device.name)
 
+    # CPU fallback: Triton kernels require CUDA device
+    if device.type == "cpu":
+        return torch.hamming_window(
+            window_length,
+            periodic=periodic,
+            dtype=dtype,
+            layout=layout,
+            device=device,
+            pin_memory=pin_memory,
+        )
+
     out = torch.empty(
         (window_length,),
         dtype=dtype,
@@ -164,6 +175,18 @@ def hamming_window_periodic_alpha(
     if device is None:
         device = torch.device(runtime.device.name)
 
+    # CPU fallback: Triton kernels require CUDA device
+    if device.type == "cpu":
+        return torch.hamming_window(
+            window_length,
+            periodic=periodic,
+            alpha=alpha,
+            dtype=dtype,
+            layout=layout,
+            device=device,
+            pin_memory=pin_memory,
+        )
+
     out = torch.empty(
         (window_length,),
         dtype=dtype,
@@ -217,6 +240,19 @@ def hamming_window_periodic_alpha_beta(
 
     if device is None:
         device = torch.device(runtime.device.name)
+
+    # CPU fallback: Triton kernels require CUDA device
+    if device.type == "cpu":
+        return torch.hamming_window(
+            window_length,
+            periodic=periodic,
+            alpha=alpha,
+            beta=beta,
+            dtype=dtype,
+            layout=layout,
+            device=device,
+            pin_memory=pin_memory,
+        )
 
     out = torch.empty(
         (window_length,),
