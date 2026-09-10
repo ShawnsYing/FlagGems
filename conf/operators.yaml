@@ -3235,6 +3235,18 @@ ops:
   - Math
   stages:
   - stable: '5.3'
+- id: cosine_embedding_loss
+  description: Compute the cosine embedding loss.
+  for:
+    - cosine_embedding_loss
+  labels:
+    - aten
+    - nn.functional
+    - KernelGen
+  kind:
+    - NeuralNetwork
+  stages:
+    - alpha: '5.4'
 - id: count_nonzero
   description: 'Counts the number of non-zero values in the tensor `input` along the
     given `dim`.
@@ -4516,6 +4528,20 @@ ops:
   - Math
   stages:
   - alpha: '5.4'
+- id: fake_quantize_learnable_per_tensor_affine_backward
+  description: |
+    Triton kernel implementation for the backward pass of learnable
+    per-tensor affine fake quantization. Computes gradients with respect to
+    the input, scale, and zero-point.
+  for:
+    - _fake_quantize_learnable_per_tensor_affine_backward
+  labels:
+    - aten
+    - KernelGen
+  kind:
+    - Math
+  stages:
+    - alpha: '5.4'
 - id: fake_quantize_per_channel_affine
   description: Applies fake quantization per channel with affine parameters (scale
     and zero_point).
@@ -10173,6 +10199,19 @@ ops:
   - pointwise
   kind:
   - Logic
+  stages:
+  - alpha: '5.4'
+- id: nuclear_norm
+  description: 'Computes the nuclear norm (sum of singular values) of a matrix.
+
+    '
+  for:
+  - nuclear_norm
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - Math
   stages:
   - alpha: '5.4'
 - id: one_hot
