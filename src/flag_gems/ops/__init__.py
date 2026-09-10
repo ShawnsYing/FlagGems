@@ -365,6 +365,7 @@ from flag_gems.ops.dsplit import dsplit
 from flag_gems.ops.elu import elu, elu_, elu_backward
 from flag_gems.ops.embedding import embedding, embedding_backward
 from flag_gems.ops.embedding_dense_backward import embedding_dense_backward
+from flag_gems.ops.embedding_renorm_ import embedding_renorm_
 from flag_gems.ops.empty import empty
 from flag_gems.ops.empty_permuted import empty_permuted
 from flag_gems.ops.eq import eq, eq_scalar, equal
@@ -709,6 +710,7 @@ from flag_gems.ops.normal import (
 )
 from flag_gems.ops.not_equal import not_equal, not_equal_scalar
 from flag_gems.ops.not_equal_ import not_equal_, not_equal_scalar_
+from flag_gems.ops.nuclear_norm import nuclear_norm
 from flag_gems.ops.one_hot import one_hot
 from flag_gems.ops.ones import ones
 from flag_gems.ops.ones_like import ones_like
@@ -1359,6 +1361,7 @@ __all__ = [
     "embedding",
     "embedding_backward",
     "embedding_dense_backward",
+    "embedding_renorm_",
     "empty",
     "empty_permuted",
     "eq",
@@ -1756,6 +1759,7 @@ __all__ = [
     "not_equal_",
     "not_equal_scalar",
     "not_equal_scalar_",
+    "nuclear_norm",
     "one_hot",
     "ones",
     "ones_like",
