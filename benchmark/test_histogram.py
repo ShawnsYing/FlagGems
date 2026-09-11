@@ -12,44 +12,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import torch
 
-from . import base, consts
+from . import base
 
 
-def _histogram_bin_ct_input_fn(shape, dtype, device):
-    """Generate input for histogram.bin_ct benchmark."""
+def _bin_ct_input_fn(shape, dtype, device):
+    # histogram.bin_ct operates on any-shaped input, flattened internally.
     inp = torch.randn(shape, dtype=dtype, device=device)
-    bins = 100
-    # histogram.bin_ct(inp, bins=bins)
-    yield inp, bins
+    # 100 bins is a common default for histogram benchmarks.
+    yield inp, {"bins": 100}
 
 
-def _histogram_bins_tensor_input_fn(shape, dtype, device):
-    """Generate input for histogram.bins_tensor benchmark."""
+def _bins_tensor_input_fn(shape, dtype, device):
     inp = torch.rand(shape, dtype=dtype, device=device)
+    # 101 edges -> 100 uniform bins over [0, 1] to match rand() range.
     bins = torch.linspace(0.0, 1.0, 101, dtype=dtype, device=device)
-    # histogram.bins_tensor(inp, bins=bins)
-    yield inp, bins
+    yield inp, {"bins": bins}
 
 
-@consts.perf
-def test_perf_histogram_bin_ct():
+def _bin_ct_torch_cpu(inp, bins):
+    """Run torch.histogram on CPU; it has no CUDA implementation."""
+    device = inp.device
+    hist, edges = torch.histogram(inp.cpu(), bins=bins)
+    return hist.to(device), edges.to(device)
+
+
+def _bins_tensor_torch_cpu(inp, bins):
+    """Run torch.histogram on CPU; it has no CUDA implementation."""
+    device = inp.device
+    hist, edges = torch.histogram(inp.cpu(), bins=bins.cpu())
+    return hist.to(device), edges.to(device)
+
+
+@pytest.mark.histogram
+@pytest.mark.histogram_bin_ct
+def test_histogram_bin_ct():
+    """
+    Benchmark histogram.bin_ct operator.
+
+    Note: Native torch.histogram has no CUDA implementation and only runs on
+    CPU. This benchmark compares the GPU gems kernel against the CPU native
+    reference, which is not a fair device-to-device comparison but shows
+    performance capability.
+
+    torch.histogram does not support float16, so only float32 and float64
+    are tested.
+    """
     bench = base.GenericBenchmark(
-        input_fn=_histogram_bin_ct_input_fn,
+        input_fn=_bin_ct_input_fn,
         op_name="histogram.bin_ct",
-        torch_op=lambda inp, bins: torch.histogram(inp.cpu(), bins=bins),
-        dtypes=consts.FLOAT_DTYPES,
+        torch_op=_bin_ct_torch_cpu,
+        dtypes=[torch.float32, torch.float64],
     )
     bench.run()
 
 
-@consts.perf
-def test_perf_histogram_bins_tensor():
+@pytest.mark.histogram
+@pytest.mark.histogram_bins_tensor
+def test_histogram_bins_tensor():
+    """
+    Benchmark histogram.bins_tensor operator.
+
+    Note: Native torch.histogram has no CUDA implementation and only runs on
+    CPU. This benchmark compares the GPU gems kernel against the CPU native
+    reference, which is not a fair device-to-device comparison but shows
+    performance capability.
+
+    torch.histogram does not support float16, so only float32 and float64
+    are tested.
+    """
     bench = base.GenericBenchmark(
-        input_fn=_histogram_bins_tensor_input_fn,
+        input_fn=_bins_tensor_input_fn,
         op_name="histogram.bins_tensor",
-        torch_op=lambda inp, bins: torch.histogram(inp.cpu(), bins=bins.cpu()),
-        dtypes=consts.FLOAT_DTYPES,
+        torch_op=_bins_tensor_torch_cpu,
+        dtypes=[torch.float32, torch.float64],
     )
     bench.run()
