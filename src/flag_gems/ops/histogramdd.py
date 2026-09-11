@@ -153,8 +153,13 @@ def histogramdd(input, bins, range=None, weight=None, density=False):
             dim_min = float(range_vals[2 * d])
             dim_max = float(range_vals[2 * d + 1])
         else:
-            dim_min = float(dim_data.min().item())
-            dim_max = float(dim_data.max().item())
+            # For empty input, use default range [0, 1]
+            if N == 0:
+                dim_min = 0.0
+                dim_max = 1.0
+            else:
+                dim_min = float(dim_data.min().item())
+                dim_max = float(dim_data.max().item())
 
         # Handle degenerate range (all values equal)
         if dim_min == dim_max:
