@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 def histogramdd_kernel(
     input_ptr,
     hist_ptr,
-    edges_ptrs,  # Pointer to array of edge tensor pointers
+    edge_mins_ptr,  # Array of min values per dimension
+    edge_maxs_ptr,  # Array of max values per dimension
     N,
     D,
     bins_ptr,  # Array of bin counts per dimension
@@ -67,10 +68,8 @@ def histogramdd_kernel(
                 num_bins = tl.load(bins_ptr + d).to(tl.int32)
 
                 # Load edge boundaries for this dimension
-                # edges_ptrs[d] points to the edge tensor for dimension d
-                edges_base = tl.load(edges_ptrs + d)
-                edge_min = tl.load(edges_base + 0)
-                edge_max = tl.load(edges_base + num_bins)
+                edge_min = tl.load(edge_mins_ptr + d)
+                edge_max = tl.load(edge_maxs_ptr + d)
 
                 # Check if value is in range
                 in_range = in_range and not (
@@ -180,12 +179,15 @@ def histogramdd(input, bins, range=None, weight=None, density=False):
     if N == 0:
         return hist, bin_edges
 
-    # Prepare bins array and edge pointers for kernel
+    # Prepare bins array and edge min/max for kernel
     bins_tensor = torch.tensor(bins, dtype=torch.int32, device=input.device)
 
-    # Create array of pointers to edge tensors
-    edge_ptrs = torch.tensor(
-        [edge.data_ptr() for edge in bin_edges], dtype=torch.int64, device=input.device
+    # Extract min and max values from each edge tensor
+    edge_mins = torch.tensor(
+        [edge[0].item() for edge in bin_edges], dtype=input.dtype, device=input.device
+    )
+    edge_maxs = torch.tensor(
+        [edge[-1].item() for edge in bin_edges], dtype=input.dtype, device=input.device
     )
 
     # Launch kernel
@@ -196,7 +198,8 @@ def histogramdd(input, bins, range=None, weight=None, density=False):
         histogramdd_kernel[grid](
             input,
             hist,
-            edge_ptrs,
+            edge_mins,
+            edge_maxs,
             N,
             D,
             bins_tensor,
