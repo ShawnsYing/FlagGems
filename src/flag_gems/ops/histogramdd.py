@@ -71,10 +71,9 @@ def histogramdd_kernel(
                 edge_min = tl.load(edge_mins_ptr + d)
                 edge_max = tl.load(edge_maxs_ptr + d)
 
-                # Check if value is in range
-                in_range = in_range and not (
-                    val < edge_min or val > edge_max or tl.math.isnan(val)
-                )
+                # Check if value is in range (val != val checks for NaN)
+                is_nan = val != val
+                in_range = in_range and not (val < edge_min or val > edge_max or is_nan)
 
                 # Compute bin index using binary search approximation
                 # For uniform bins: bin_idx = floor((val - min) / bin_width)
