@@ -33,4 +33,6 @@ def test_infinitely_differentiable_gelu_backward(shape, dtype):
     ref_out = torch.ops.aten.infinitely_differentiable_gelu_backward(ref_grad, ref_self)
     res_out = torch.ops.aten.infinitely_differentiable_gelu_backward(grad, self_input)
 
-    utils.gems_assert_close(res_out, ref_out, dtype)
+    # Use higher tolerance for low precision dtypes due to accumulated errors in exp/erf operations
+    atol = 1e-2 if dtype in [torch.float16, torch.bfloat16] else 1e-4
+    utils.gems_assert_close(res_out, ref_out, dtype, atol=atol)
