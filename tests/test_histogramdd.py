@@ -34,15 +34,15 @@ def test_histogramdd_basic(shape, bins, dtype):
     ref_hist, ref_edges = torch.histogramdd(inp.cpu(), bins=bins)
     res_hist, res_edges = flag_gems.histogramdd(inp, bins=bins)
 
-    # Compare histogram (move ref to device for comparison)
-    utils.gems_assert_equal(res_hist, ref_hist.to(flag_gems.device))
+    # Compare histogram (ref stays on CPU, framework handles device conversion)
+    utils.gems_assert_equal(res_hist, ref_hist)
 
     # Compare bin edges
     assert len(res_edges) == len(ref_edges), "edge list length mismatch"
     for i, (res_edge, ref_edge) in enumerate(zip(res_edges, ref_edges)):
         utils.gems_assert_close(
             res_edge,
-            ref_edge.to(flag_gems.device),
+            ref_edge,
             dtype,
             atol=1e-4,
         )
@@ -64,12 +64,12 @@ def test_histogramdd_with_range(shape, dtype):
     ref_hist, ref_edges = torch.histogramdd(inp.cpu(), bins=bins, range=range_vals)
     res_hist, res_edges = flag_gems.histogramdd(inp, bins=bins, range=range_vals)
 
-    utils.gems_assert_equal(res_hist, ref_hist.to(flag_gems.device))
+    utils.gems_assert_equal(res_hist, ref_hist)
 
     for i, (res_edge, ref_edge) in enumerate(zip(res_edges, ref_edges)):
         utils.gems_assert_close(
             res_edge,
-            ref_edge.to(flag_gems.device),
+            ref_edge,
             dtype,
             atol=1e-4,
         )
@@ -88,12 +88,12 @@ def test_histogramdd_density(shape, dtype):
     res_hist, res_edges = flag_gems.histogramdd(inp, bins=bins, density=True)
 
     # Density normalization may have larger relative errors
-    utils.gems_assert_close(res_hist, ref_hist.to(flag_gems.device), dtype, atol=1e-3)
+    utils.gems_assert_close(res_hist, ref_hist, dtype, atol=1e-3)
 
     for i, (res_edge, ref_edge) in enumerate(zip(res_edges, ref_edges)):
         utils.gems_assert_close(
             res_edge,
-            ref_edge.to(flag_gems.device),
+            ref_edge,
             dtype,
             atol=1e-4,
         )
@@ -122,13 +122,13 @@ def test_histogramdd_degenerate_range():
     ref_hist, ref_edges = torch.histogramdd(inp.cpu(), bins=bins)
     res_hist, res_edges = flag_gems.histogramdd(inp, bins=bins)
 
-    utils.gems_assert_equal(res_hist, ref_hist.to(flag_gems.device))
+    utils.gems_assert_equal(res_hist, ref_hist)
 
     # Check that edges span [val-0.5, val+0.5] for degenerate case
     for i, (res_edge, ref_edge) in enumerate(zip(res_edges, ref_edges)):
         utils.gems_assert_close(
             res_edge,
-            ref_edge.to(flag_gems.device),
+            ref_edge,
             torch.float32,
             atol=1e-4,
         )
