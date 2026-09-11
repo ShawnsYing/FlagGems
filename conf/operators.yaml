@@ -3781,6 +3781,22 @@ ops:
   stages:
   - beta: '5.0'
   - stable: '5.3'
+- id: dirichlet_grad
+  description: 'Computes the reparameterized-gradient of the Dirichlet distribution
+    with respect
+
+    to its concentration parameters, used by `torch.distributions.Dirichlet` autograd.
+
+    '
+  for:
+  - _dirichlet_grad
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - Math
+  stages:
+  - alpha: '5.4'
 - id: dispatch_fused_moe_kernel
   description: 'Accelerates neural network training by combining token routing (dispatch/all-to-all
     communication),
@@ -6403,6 +6419,25 @@ ops:
   - aten
   kind:
   - Tensor
+  stages:
+  - alpha: '5.4'
+- id: hash_tensor
+  description: 'Reduces the input tensor by XOR-ing the raw 64-bit representations
+    of its elements over the given dims (an empty dim list reduces over all
+    elements).
+
+    Floating types are widened to float64 and bit-cast to uint64; integer and bool
+    types are extended to int64 and bit-cast to uint64. The output dtype is always
+    uint64 and mode must be 0.
+
+    '
+  for:
+  - hash_tensor
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - Reduction
   stages:
   - alpha: '5.4'
 - id: hc_head_fused_kernel
@@ -9866,6 +9901,20 @@ ops:
     without copying any data.
   for:
     - _nested_view_from_jagged
+  labels:
+    - aten
+    - KernelGen
+  kind:
+    - Tensor
+  stages:
+    - alpha: '5.4'
+- id: nested_view_from_jagged_copy
+  description: |
+    Constructs a jagged-layout nested tensor from a flat buffer split into
+    batch elements according to offsets/lengths metadata, owning a fresh copy
+    of the buffer.
+  for:
+    - _nested_view_from_jagged_copy
   labels:
     - aten
     - KernelGen
