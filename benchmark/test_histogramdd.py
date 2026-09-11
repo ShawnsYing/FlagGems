@@ -42,7 +42,10 @@ def _input_fn(shape, dtype, device):
 
 def _torch_op_cpu(inp, bins):
     """Wrapper to run torch.histogramdd on CPU since it has no CUDA implementation."""
-    return torch.histogramdd(inp.cpu(), bins=bins)
+    device = inp.device
+    hist, edges = torch.histogramdd(inp.cpu(), bins=bins)
+    # Move results back to original device for benchmark framework
+    return hist.to(device), [edge.to(device) for edge in edges]
 
 
 @pytest.mark.histogramdd
