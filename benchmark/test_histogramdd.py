@@ -15,7 +15,7 @@
 import pytest
 import torch
 
-from . import base, consts
+from . import base
 
 
 def _input_fn(shape, dtype, device):
@@ -53,11 +53,13 @@ def test_histogramdd():
     Note: Native torch.histogramdd has no CUDA implementation and only runs on CPU.
     This benchmark compares GPU Triton kernel (gems) against CPU native reference,
     which is not a fair device-to-device comparison but shows performance capability.
+
+    torch.histogramdd does not support float16, so only float32 and float64 are tested.
     """
     bench = base.GenericBenchmark(
         input_fn=_input_fn,
         op_name="histogramdd",
         torch_op=_torch_op_cpu,
-        dtypes=consts.FLOAT_DTYPES,
+        dtypes=[torch.float32, torch.float64],
     )
     bench.run()
