@@ -62,7 +62,6 @@ def histogramdd_kernel(
             for d in range(D - 1, -1, -1):
                 # Load value for this dimension
                 val = tl.load(input_ptr + point_idx * D + d)
-                val = val.to(tl.float32)
 
                 # Load bin count for this dimension
                 num_bins = tl.load(bins_ptr + d).to(tl.int32)
@@ -72,6 +71,7 @@ def histogramdd_kernel(
                 edge_max = tl.load(edge_maxs_ptr + d)
 
                 # Check if value is in range (val != val checks for NaN)
+                # Note: edge_max is inclusive (values exactly at edge_max are valid)
                 is_nan = val != val
                 in_range = in_range and not (val < edge_min or val > edge_max or is_nan)
 
@@ -81,7 +81,8 @@ def histogramdd_kernel(
                 bin_idx = tl.floor((val - edge_min) / bin_width).to(tl.int32)
 
                 # Clamp to valid range and handle right edge
-                bin_idx = tl.where(val == edge_max, num_bins - 1, bin_idx)
+                # Values exactly at edge_max should go into the last bin (num_bins - 1)
+                bin_idx = tl.where(val >= edge_max, num_bins - 1, bin_idx)
                 bin_idx = tl.maximum(0, tl.minimum(num_bins - 1, bin_idx))
 
                 # Accumulate linear index (row-major order)
