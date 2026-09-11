@@ -40,6 +40,11 @@ def _input_fn(shape, dtype, device):
     yield inp, {"bins": bins}
 
 
+def _torch_op_cpu(inp, bins):
+    """Wrapper to run torch.histogramdd on CPU since it has no CUDA implementation."""
+    return torch.histogramdd(inp.cpu(), bins=bins)
+
+
 @pytest.mark.histogramdd
 def test_histogramdd():
     """
@@ -52,7 +57,7 @@ def test_histogramdd():
     bench = base.GenericBenchmark(
         input_fn=_input_fn,
         op_name="histogramdd",
-        torch_op=torch.histogramdd,
+        torch_op=_torch_op_cpu,
         dtypes=consts.FLOAT_DTYPES,
     )
     bench.run()
