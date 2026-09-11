@@ -12,71 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import torch
 
 from . import base, consts
 
 
-@pytest.mark.histogram
-@pytest.mark.histogram_bin_ct
-@pytest.mark.parametrize(
-    "size, bins",
-    [
-        (1024 * 1024, 100),
-        (1024 * 1024, 256),
-        (2 * 1024 * 1024, 100),
-        (2 * 1024 * 1024, 256),
-        (4 * 1024 * 1024, 100),
-        (4 * 1024 * 1024, 256),
-    ],
-)
-@pytest.mark.parametrize("dtype", consts.FLOAT_DTYPES)
-def test_perf_histogram_bin_ct(size, bins, dtype):
-    def histogram_torch(inp):
-        # torch.histogram is CPU-only, move to CPU for reference
-        return torch.histogram(inp.cpu(), bins=bins)
+def _histogram_bin_ct_input_fn(shape, dtype, device):
+    """Generate input for histogram.bin_ct benchmark."""
+    inp = torch.randn(shape, dtype=dtype, device=device)
+    bins = 100
+    # histogram.bin_ct(inp, bins=bins)
+    yield inp, bins
 
-    def histogram_gems(inp):
-        import flag_gems
 
-        return flag_gems.histogram_bin_ct(inp, bins=bins)
+def _histogram_bins_tensor_input_fn(shape, dtype, device):
+    """Generate input for histogram.bins_tensor benchmark."""
+    inp = torch.rand(shape, dtype=dtype, device=device)
+    bins = torch.linspace(0.0, 1.0, 101, dtype=dtype, device=device)
+    # histogram.bins_tensor(inp, bins=bins)
+    yield inp, bins
 
-    inp = torch.randn(size, dtype=dtype, device="cuda")
-    base.run_benchmark(
-        histogram_gems,
-        histogram_torch,
-        (inp,),
-        f"histogram.bin_ct-{dtype}-{size}-{bins}bins",
+
+@consts.perf
+def test_perf_histogram_bin_ct():
+    bench = base.GenericBenchmark(
+        input_fn=_histogram_bin_ct_input_fn,
+        op_name="histogram.bin_ct",
+        torch_op=lambda inp, bins: torch.histogram(inp.cpu(), bins=bins),
+        dtypes=consts.FLOAT_DTYPES,
     )
+    bench.run()
 
 
-@pytest.mark.histogram
-@pytest.mark.histogram_bins_tensor
-@pytest.mark.parametrize(
-    "size, bins",
-    [
-        (1024 * 1024, 100),
-        (2 * 1024 * 1024, 100),
-        (4 * 1024 * 1024, 100),
-    ],
-)
-@pytest.mark.parametrize("dtype", consts.FLOAT_DTYPES)
-def test_perf_histogram_bins_tensor(size, bins, dtype):
-    bin_edges = torch.linspace(0.0, 1.0, bins + 1, dtype=dtype, device="cuda")
-
-    def histogram_torch(inp):
-        return torch.histogram(inp.cpu(), bins=bin_edges.cpu())
-
-    def histogram_gems(inp):
-        import flag_gems
-
-        return flag_gems.histogram_bins_tensor(inp, bins=bin_edges)
-
-    inp = torch.rand(size, dtype=dtype, device="cuda")
-    base.run_benchmark(
-        histogram_gems,
-        histogram_torch,
-        (inp,),
-        f"histogram.bins_tensor-{dtype}-{size}-{bins}bins",
+@consts.perf
+def test_perf_histogram_bins_tensor():
+    bench = base.GenericBenchmark(
+        input_fn=_histogram_bins_tensor_input_fn,
+        op_name="histogram.bins_tensor",
+        torch_op=lambda inp, bins: torch.histogram(inp.cpu(), bins=bins.cpu()),
+        dtypes=consts.FLOAT_DTYPES,
     )
+    bench.run()
