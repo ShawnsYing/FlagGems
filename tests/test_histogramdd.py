@@ -44,9 +44,8 @@ def test_histogramdd_basic(shape, bins, dtype):
         utils.gems_assert_close(
             res_edge,
             ref_edge.to(flag_gems.device),
+            dtype,
             atol=1e-4,
-            rtol=1e-5,
-            msg=f"edge[{i}] mismatch",
         )
 
 
@@ -73,9 +72,8 @@ def test_histogramdd_with_range(shape, dtype):
         utils.gems_assert_close(
             res_edge,
             ref_edge.to(flag_gems.device),
+            dtype,
             atol=1e-4,
-            rtol=1e-5,
-            msg=f"edge[{i}] with range mismatch",
         )
 
 
@@ -93,17 +91,14 @@ def test_histogramdd_density(shape, dtype):
     res_hist, res_edges = flag_gems.histogramdd(inp, bins=bins, density=True)
 
     # Density normalization may have larger relative errors
-    utils.gems_assert_close(
-        res_hist, ref_hist.to(flag_gems.device), atol=1e-3, rtol=1e-3
-    )
+    utils.gems_assert_close(res_hist, ref_hist.to(flag_gems.device), dtype, atol=1e-3)
 
     for i, (res_edge, ref_edge) in enumerate(zip(res_edges, ref_edges)):
         utils.gems_assert_close(
             res_edge,
             ref_edge.to(flag_gems.device),
+            dtype,
             atol=1e-4,
-            rtol=1e-5,
-            msg=f"edge[{i}] density mismatch",
         )
 
 
@@ -137,7 +132,6 @@ def test_histogramdd_degenerate_range():
         utils.gems_assert_close(
             res_edge,
             ref_edge.to(flag_gems.device),
+            torch.float32,
             atol=1e-4,
-            rtol=1e-5,
-            msg=f"edge[{i}] degenerate mismatch",
         )
