@@ -30,6 +30,7 @@ else:
 HISTOGRAM_DTYPES = [torch.float32, torch.float64]
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bin_ct
 @pytest.mark.parametrize("shape", HISTOGRAM_SHAPES)
 @pytest.mark.parametrize("bins", HISTOGRAM_BINS)
@@ -45,6 +46,7 @@ def test_accuracy_histogram_bin_ct(shape, bins, dtype):
     gems_assert_close(res_edges.cpu(), ref_edges, dtype)
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bin_ct
 @pytest.mark.parametrize("shape", HISTOGRAM_SHAPES)
 @pytest.mark.parametrize("bins", HISTOGRAM_BINS)
@@ -58,6 +60,7 @@ def test_accuracy_histogram_bin_ct_with_range(shape, bins, dtype):
     gems_assert_close(res_edges.cpu(), ref_edges, dtype)
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bin_ct
 @pytest.mark.parametrize("shape", [(256,), (100, 50)])
 @pytest.mark.parametrize("dtype", HISTOGRAM_DTYPES)
@@ -72,6 +75,7 @@ def test_accuracy_histogram_bin_ct_with_weight(shape, dtype):
     gems_assert_close(res_edges.cpu(), ref_edges, dtype)
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bin_ct
 @pytest.mark.parametrize("shape", [(512,), (64, 64)])
 @pytest.mark.parametrize("dtype", HISTOGRAM_DTYPES)
@@ -84,6 +88,7 @@ def test_accuracy_histogram_bin_ct_with_density(shape, dtype):
     gems_assert_close(res_edges.cpu(), ref_edges, dtype)
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bins_tensor
 @pytest.mark.parametrize("shape", [(128,), (512,), (64, 64)])
 @pytest.mark.parametrize("dtype", HISTOGRAM_DTYPES)
@@ -98,6 +103,7 @@ def test_accuracy_histogram_bins_tensor(shape, dtype):
     gems_assert_close(res_bin_edges.cpu(), ref_bin_edges, dtype)
 
 
+@pytest.mark.histogram
 @pytest.mark.histogram_bins_tensor
 @pytest.mark.parametrize("shape", [(256,)])
 @pytest.mark.parametrize("dtype", HISTOGRAM_DTYPES)
