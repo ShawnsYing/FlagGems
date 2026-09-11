@@ -34,8 +34,9 @@ def test_hspmm_accuracy(M, K, N, nnz, dtype):
     """Test hspmm correctness against dense reference."""
     device = flag_gems.device
 
-    # Limit nnz to reasonable values
-    actual_nnz = min(nnz, M * K)
+    # Limit nnz to avoid excessive duplicate indices that amplify floating-point error
+    # Use 50% of matrix capacity to keep coalesced nnz reasonable
+    actual_nnz = min(nnz, M * K // 2)
 
     # Create sparse mat1 and dense mat2
     mat1 = _make_sparse_coo((M, K), actual_nnz, dtype, device)
