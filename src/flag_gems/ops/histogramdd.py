@@ -49,50 +49,50 @@ def histogramdd_kernel(
 
     # For each point, compute multi-dimensional bin index
     for i in range(BLOCK_SIZE):
-        if pid * BLOCK_SIZE + i >= N:
-            break
-
         point_idx = pid * BLOCK_SIZE + i
-        linear_bin_idx = 0
-        stride = 1
-        in_range = True
 
-        # Iterate dimensions in reverse order for row-major indexing
-        for d in range(D - 1, -1, -1):
-            # Load value for this dimension
-            val = tl.load(input_ptr + point_idx * D + d)
-            val = val.to(tl.float32)
+        # Only process if within bounds
+        if point_idx < N:
+            linear_bin_idx = 0
+            stride = 1
+            in_range = True
 
-            # Load bin count for this dimension
-            num_bins = tl.load(bins_ptr + d).to(tl.int32)
+            # Iterate dimensions in reverse order for row-major indexing
+            for d in range(D - 1, -1, -1):
+                # Load value for this dimension
+                val = tl.load(input_ptr + point_idx * D + d)
+                val = val.to(tl.float32)
 
-            # Load edge boundaries for this dimension
-            # edges_ptrs[d] points to the edge tensor for dimension d
-            edges_base = tl.load(edges_ptrs + d)
-            edge_min = tl.load(edges_base + 0)
-            edge_max = tl.load(edges_base + num_bins)
+                # Load bin count for this dimension
+                num_bins = tl.load(bins_ptr + d).to(tl.int32)
 
-            # Check if value is in range
-            if val < edge_min or val > edge_max or tl.math.isnan(val):
-                in_range = False
-                break
+                # Load edge boundaries for this dimension
+                # edges_ptrs[d] points to the edge tensor for dimension d
+                edges_base = tl.load(edges_ptrs + d)
+                edge_min = tl.load(edges_base + 0)
+                edge_max = tl.load(edges_base + num_bins)
 
-            # Compute bin index using binary search approximation
-            # For uniform bins: bin_idx = floor((val - min) / bin_width)
-            bin_width = (edge_max - edge_min) / num_bins
-            bin_idx = tl.floor((val - edge_min) / bin_width).to(tl.int32)
+                # Check if value is in range
+                in_range = in_range and not (
+                    val < edge_min or val > edge_max or tl.math.isnan(val)
+                )
 
-            # Clamp to valid range and handle right edge
-            bin_idx = tl.where(val == edge_max, num_bins - 1, bin_idx)
-            bin_idx = tl.maximum(0, tl.minimum(num_bins - 1, bin_idx))
+                # Compute bin index using binary search approximation
+                # For uniform bins: bin_idx = floor((val - min) / bin_width)
+                bin_width = (edge_max - edge_min) / num_bins
+                bin_idx = tl.floor((val - edge_min) / bin_width).to(tl.int32)
 
-            # Accumulate linear index (row-major order)
-            linear_bin_idx += bin_idx * stride
-            stride *= num_bins
+                # Clamp to valid range and handle right edge
+                bin_idx = tl.where(val == edge_max, num_bins - 1, bin_idx)
+                bin_idx = tl.maximum(0, tl.minimum(num_bins - 1, bin_idx))
 
-        # Atomically increment histogram if point is in range
-        if in_range:
-            tl.atomic_add(hist_ptr + linear_bin_idx, 1.0, sem="relaxed")
+                # Accumulate linear index (row-major order)
+                linear_bin_idx += bin_idx * stride
+                stride *= num_bins
+
+            # Atomically increment histogram if point is in range
+            if in_range:
+                tl.atomic_add(hist_ptr + linear_bin_idx, 1.0, sem="relaxed")
 
 
 def histogramdd(input, bins, range=None, weight=None, density=False):
