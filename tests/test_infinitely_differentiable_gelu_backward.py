@@ -31,9 +31,6 @@ def test_infinitely_differentiable_gelu_backward(shape, dtype):
     ref_self = utils.to_reference(self_input, True)
 
     ref_out = torch.ops.aten.infinitely_differentiable_gelu_backward(ref_grad, ref_self)
-    with flag_gems.use_gems():
-        res_out = torch.ops.aten.infinitely_differentiable_gelu_backward(
-            grad, self_input
-        )
+    res_out = torch.ops.aten.infinitely_differentiable_gelu_backward(grad, self_input)
 
     utils.gems_assert_close(res_out, ref_out, dtype)
