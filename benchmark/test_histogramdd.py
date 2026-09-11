@@ -19,11 +19,24 @@ from . import base, consts
 
 
 def _input_fn(shape, dtype, device):
-    # shape is expected to be a tuple (N, D)
-    inp = torch.randn(shape, dtype=dtype, device=device)
+    # histogramdd expects 2D input (N, D), but benchmark may pass 1D or other shapes
+    # Reshape to 2D if needed
+    if len(shape) == 1:
+        # 1D shape: treat as N points in 2D space
+        N = shape[0]
+        D = 2
+        inp = torch.randn(N, D, dtype=dtype, device=device)
+    elif len(shape) == 2:
+        # Already 2D: use as-is
+        inp = torch.randn(shape, dtype=dtype, device=device)
+    else:
+        # 3D or higher: flatten to 2D
+        N = shape[0] * shape[1]
+        D = 2
+        inp = torch.randn(N, D, dtype=dtype, device=device)
+
     # Default: 5 bins per dimension
-    D = shape[1]
-    bins = [5] * D
+    bins = [5] * inp.shape[1]
     yield inp, {"bins": bins}
 
 
@@ -41,17 +54,5 @@ def test_histogramdd():
         op_name="histogramdd",
         torch_op=torch.histogramdd,
         dtypes=consts.FLOAT_DTYPES,
-    )
-    bench.set_shapes(
-        [
-            # (N, D) shapes - various point counts and dimensions
-            (1000, 2),
-            (5000, 2),
-            (10000, 2),
-            (1000, 3),
-            (5000, 3),
-            (1000, 4),
-            (5000, 4),
-        ]
     )
     bench.run()
