@@ -1,4 +1,4 @@
-# Copyright 2026, The FlagOS Contributors.
+# Copyright 2026 FlagOS Contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,39 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import torch
 
-import flag_gems
-
-from .performance_utils import GenericBenchmark
+from . import base, consts
 
 
+def _input_fn(shape, dtype, device):
+    # shape is expected to be a tuple (N, D)
+    inp = torch.randn(shape, dtype=dtype, device=device)
+    # Default: 5 bins per dimension
+    D = shape[1]
+    bins = [5] * D
+    yield inp, {"bins": bins}
+
+
+@pytest.mark.histogramdd
 def test_histogramdd():
     """
     Benchmark histogramdd operator.
 
     Note: Native torch.histogramdd has no CUDA implementation and only runs on CPU.
     This benchmark compares GPU Triton kernel (gems) against CPU native reference,
-    which is not a fair device-to-device comparison. The speedup numbers reflect
-    GPU-vs-CPU performance, not kernel optimization quality.
+    which is not a fair device-to-device comparison but shows performance capability.
     """
-
-    def input_fn(shape, dtype, device):
-        # shape is expected to be a tuple (N, D)
-        inp = torch.randn(shape, dtype=dtype, device=device)
-        # Default: 5 bins per dimension
-        D = shape[1]
-        bins = [5] * D
-        yield inp, bins, None, None, False
-
-    bench = GenericBenchmark(
-        input_fn=input_fn,
+    bench = base.GenericBenchmark(
+        input_fn=_input_fn,
         op_name="histogramdd",
-        torch_op=lambda inp, bins, range, weight, density: torch.histogramdd(
-            inp.cpu(), bins=bins, range=range, weight=weight, density=density
-        ),
-        dtypes=[torch.float32, torch.float64],
-        device=flag_gems.device,
+        torch_op=torch.histogramdd,
+        dtypes=consts.FLOAT_DTYPES,
     )
     bench.set_shapes(
         [
