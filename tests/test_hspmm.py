@@ -27,18 +27,15 @@ def _make_sparse_coo(shape, nnz, dtype, device):
 @pytest.mark.parametrize("M", [1, 16, 64, 256])
 @pytest.mark.parametrize("K", [1, 32, 128])
 @pytest.mark.parametrize("N", [1, 8, 64])
-@pytest.mark.parametrize(
-    "nnz", [0, 1, 10, 50]
-)  # Reduced from 100 to avoid precision issues
+@pytest.mark.parametrize("nnz", [0, 1, 10, 100])
 # CUDA aten::hspmm only supports float32/float64 (fp16/bf16 not implemented)
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 def test_hspmm_accuracy(M, K, N, nnz, dtype):
     """Test hspmm correctness against dense reference."""
     device = flag_gems.device
 
-    # Limit nnz to 20% of matrix capacity to minimize duplicate indices
-    # and keep floating-point accumulation error within tolerance
-    actual_nnz = min(nnz, M * K // 5)
+    # Limit nnz to matrix capacity
+    actual_nnz = min(nnz, M * K)
 
     # Create sparse mat1 and dense mat2
     mat1 = _make_sparse_coo((M, K), actual_nnz, dtype, device)
@@ -46,10 +43,13 @@ def test_hspmm_accuracy(M, K, N, nnz, dtype):
 
     # FlagGems result
     result = flag_gems.hspmm(mat1, mat2)
-
-    # Reference: dense matmul
-    ref_dense = torch.mm(mat1.to_dense(), mat2)
     result_dense = result.to_dense()
+
+    # High-precision reference: upcast inputs to fp64 so the reference matmul
+    # is close to the true value, isolating GPU float32 accumulation error.
+    ref_mat1 = utils.to_reference(mat1.to_dense(), upcast=True)
+    ref_mat2 = utils.to_reference(mat2, upcast=True)
+    ref_dense = torch.mm(ref_mat1, ref_mat2)
 
     # Compare
     utils.gems_assert_close(result_dense, ref_dense, dtype, reduce_dim=K)
@@ -68,7 +68,10 @@ def test_hspmm_non_contiguous(dtype):
     mat2 = torch.randn(N, K, dtype=dtype, device=device).t()  # Non-contiguous
 
     result = flag_gems.hspmm(mat1, mat2)
-    ref_dense = torch.mm(mat1.to_dense(), mat2)
+
+    ref_mat1 = utils.to_reference(mat1.to_dense(), upcast=True)
+    ref_mat2 = utils.to_reference(mat2, upcast=True)
+    ref_dense = torch.mm(ref_mat1, ref_mat2)
 
     utils.gems_assert_close(result.to_dense(), ref_dense, dtype, reduce_dim=K)
 
@@ -89,6 +92,9 @@ def test_hspmm_uncoalesced_input(dtype):
     mat2 = torch.randn(K, N, dtype=dtype, device=device)
 
     result = flag_gems.hspmm(mat1, mat2)
-    ref_dense = torch.mm(mat1.to_dense(), mat2)
+
+    ref_mat1 = utils.to_reference(mat1.to_dense(), upcast=True)
+    ref_mat2 = utils.to_reference(mat2, upcast=True)
+    ref_dense = torch.mm(ref_mat1, ref_mat2)
 
     utils.gems_assert_close(result.to_dense(), ref_dense, dtype, reduce_dim=K)
