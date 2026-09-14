@@ -11,16 +11,16 @@ class ScaledDotProductAttentionMathForMpsBenchmark(base.GenericBenchmark):
     benchmark for _scaled_dot_product_attention_math_for_mps
     """
 
-    # Attention requires 4D shapes (B, H, S, D) — override generic 1D/2D/3D defaults
-    DEFAULT_SHAPES = [
-        (2, 8, 64, 64),
-        (4, 8, 128, 64),
-        (2, 8, 128, 128),
-        (1, 16, 256, 64),
-    ]
-
-    def set_more_shapes(self):
-        return None
+    def set_shapes(self, shape_file_path=None):
+        # Override set_shapes (not set_more_shapes) so CI's generic core_shapes
+        # can't replace these 4D attention shapes with 1D/2D/3D defaults.
+        # (batch, num_heads, seq_len, head_size)
+        self.shapes = [
+            (2, 8, 64, 64),
+            (4, 8, 128, 64),
+            (2, 8, 128, 128),
+            (1, 16, 256, 64),
+        ]
 
 
 @pytest.mark.scaled_dot_product_attention_math_for_mps
