@@ -1,4 +1,4 @@
-# Copyright 2026, The FlagOS Contributors.
+# Copyright 2026 FlagOS Contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,39 +15,48 @@
 import pytest
 import torch
 
-from .performance_utils import GenericBenchmark
+import flag_gems
+
+from . import base
+
+# One (dimension, MAXBIT) state buffer per shape; the operator fills the whole
+# buffer from a fixed table, so the runtime scales with the dimension count.
+SOBOL_INIT_SHAPES = [
+    (100, 30),
+    (500, 30),
+    (1000, 30),
+    (5000, 30),
+]
+
+MAXBIT = 30
 
 
-class Benchmark(GenericBenchmark):
-    """Benchmark for _sobol_engine_initialize_state_ operator."""
+def sobol_init_input_fn(shape, dtype, device):
+    dimension = shape[0]
+    state = torch.zeros((dimension, MAXBIT), dtype=torch.int64, device=device)
+    yield state, dimension
 
-    # Note: This operator is not compute-intensive (it's a lookup table fill operation)
-    # Benchmarking serves mainly to verify no regression vs native implementation
-    DEFAULT_SHAPES = [(100, 30), (500, 30), (1000, 30), (5000, 30)]
-    DEFAULT_METRICS = ["latency", "speedup"]
 
-    def set_more_shapes(self):
-        """Define benchmark shapes: (dimension, 30) where dimension varies."""
-        self.shapes = [
-            {"dimension": 10},
-            {"dimension": 50},
-            {"dimension": 100},
-            {"dimension": 500},
-            {"dimension": 1000},
-            {"dimension": 5000},
-            {"dimension": 10000},
-        ]
+class SobolInitBenchmark(base.Benchmark):
+    def set_shapes(self, shape_file_path=None):
+        self.shapes = SOBOL_INIT_SHAPES
 
-    def get_input_iter(self, cur_shape):
-        """Generate input tensors for benchmarking."""
-        dimension = cur_shape["dimension"]
-        # State tensor must be zeros initially
-        state = torch.zeros((dimension, 30), dtype=torch.int64, device=self.device)
-        yield state.clone(), dimension
+    def get_input_iter(self, cur_dtype):
+        for shape in self.shapes:
+            dimension = shape[0]
+            state = torch.zeros((dimension, MAXBIT), dtype=torch.int64, device=self.device)
+            yield state, dimension
 
-    @pytest.mark.sobol_engine_initialize_state_
-    def test_perf_sobol_engine_initialize_state_(self):
-        """Run performance benchmark."""
-        self.op_name = "sobol_engine_initialize_state_"
-        self.torch_op = torch.ops.aten._sobol_engine_initialize_state_
-        self.run_benchmark()
+
+@pytest.mark.sobol_engine_initialize_state_
+def test_sobol_engine_initialize_state_perf():
+    # Note: aten's _sobol_engine_initialize_state_ has no CUDA kernel (calling it
+    # on a device tensor aborts the process), so the FlagGems implementation is
+    # used as the baseline; the benchmark documents its latency/speedup record.
+    bench = SobolInitBenchmark(
+        op_name="sobol_engine_initialize_state_",
+        torch_op=flag_gems._sobol_engine_initialize_state_,
+        dtypes=[torch.int64],
+    )
+    bench.set_gems(flag_gems._sobol_engine_initialize_state_)
+    bench.run()
