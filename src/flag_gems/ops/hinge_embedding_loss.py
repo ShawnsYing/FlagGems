@@ -63,6 +63,12 @@ def _hinge_embedding_loss_partial_sum_kernel(
     vals = tl.where(is_neg, tl.maximum(margin - xf, 0.0), xf)
     vals = tl.where(mask, vals, 0.0)
 
+    # aten computes the per-element loss in the input dtype and sums those
+    # already-rounded values; for half/bfloat16 that rounding is observable in
+    # the reduction result (e.g. bf16 0.560546875 -> 0.5625 before the sum), so
+    # round each element before accumulating to match eager bit-for-bit.
+    vals = vals.to(x_ptr.dtype.element_ty).to(tl.float32)
+
     acc = tl.sum(vals, axis=0)
     tl.store(mid_ptr + pid, acc)
 
