@@ -37,6 +37,7 @@ def test_sign_out():
     )
     bench.run()
 
+
 @pytest.mark.sign_
 def test_sign_inplace():
     bench = base.UnaryPointwiseBenchmark(
