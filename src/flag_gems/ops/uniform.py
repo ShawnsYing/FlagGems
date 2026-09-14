@@ -31,6 +31,26 @@ from flag_gems.utils.shape_utils import volume
 logger = logging.getLogger(__name__)
 
 
+@triton.jit
+def _next_below(x, DT: tl.constexpr):
+    """Largest ``DT`` value strictly less than ``x``.
+
+    Used to build the exclusive upper bound of the sampling interval in the
+    *output* dtype: ``uniform`` samples from ``[from, to)``, so a value that
+    rounds up to ``to`` in a low-precision dtype must be stepped back one ulp.
+    """
+    step = tl.where(x >= 0, -1, 1)
+    if DT == tl.float32:
+        bits = x.to(tl.int32, bitcast=True)
+        return (bits + step.to(tl.int32)).to(tl.float32, bitcast=True)
+    elif DT == tl.float64:
+        bits = x.to(tl.int64, bitcast=True)
+        return (bits + step.to(tl.int64)).to(tl.float64, bitcast=True)
+    else:
+        bits = x.to(tl.int16, bitcast=True)
+        return (bits + step.to(tl.int16)).to(DT, bitcast=True)
+
+
 @triton.heuristics(runtime.get_heuristic_config("uniform"))
 @triton.jit(do_not_specialize=["philox_seed", "philox_offset"])
 def uniform_kernel(
@@ -54,6 +74,19 @@ def uniform_kernel(
     r1 = uint_to_uniform_float(r1) * (to - from_) + from_
     r2 = uint_to_uniform_float(r2) * (to - from_) + from_
     r3 = uint_to_uniform_float(r3) * (to - from_) + from_
+    # The scaled value is computed in float32 but stored in the output dtype,
+    # whose rounding can land exactly on the exclusive ``to`` bound (notably
+    # for float16/bfloat16). Clamp to the output-dtype predecessor of ``to`` so
+    # the sampled values stay in ``[from, to)`` after the store conversion.
+    OUT_DT: tl.constexpr = out_ptr.dtype.element_ty
+    to_dt = (r0 * 0.0 + to).to(OUT_DT)
+    from_dt = (r0 * 0.0 + from_).to(OUT_DT)
+    hi = _next_below(to_dt, OUT_DT)
+    hi = tl.where(to_dt > from_dt, hi, to_dt)
+    r0 = tl.minimum(r0.to(OUT_DT), hi)
+    r1 = tl.minimum(r1.to(OUT_DT), hi)
+    r2 = tl.minimum(r2.to(OUT_DT), hi)
+    r3 = tl.minimum(r3.to(OUT_DT), hi)
     off_0 = tl.program_id(0) * BLOCK * 4 + tl.arange(0, BLOCK)
     off_1 = off_0 + BLOCK
     off_2 = off_1 + BLOCK
@@ -83,6 +116,13 @@ def uniform_(self, from_=0.0, to=1.0, *, generator=None):
 
 def uniform(self, from_=0.0, to=1.0, *, generator=None):
     logger.debug("GEMS UNIFORM")
+    # aten::uniform rejects an empty interval before launch; mirror that so
+    # from > to raises instead of silently producing out-of-range values.
+    if from_ > to:
+        raise RuntimeError(
+            "uniform_ expects to return a [from, to) range, but found "
+            f"from={from_:g} > to={to:g}"
+        )
     out = torch.empty_like(self)
     N = volume(out.shape)
     grid_fn = lambda meta: (triton.cdiv(N, meta["BLOCK"] * UNROLL),)
