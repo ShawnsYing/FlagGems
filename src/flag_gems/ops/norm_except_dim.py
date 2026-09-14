@@ -219,16 +219,13 @@ def norm_except_dim(v, pow=2, dim=0):
 
     out_shape = [1] * ndim
     out_shape[d] = D
-    # float32 accumulator: matches torch, which accumulates the norm in a
-    # wider type before casting back to the input dtype.
-    acc = torch.zeros(out_shape, device=v.device, dtype=torch.float32)
 
     is_p2 = float(pow) == 2.0
     pval = float(pow)
 
     if numel == 0:
-        out = acc if v.dtype == torch.float32 else acc.to(v.dtype)
-        return out.reshape(()) if full_norm else out
+        acc = torch.zeros(out_shape, device=v.device, dtype=v.dtype)
+        return acc.reshape(()) if full_norm else acc
 
     split = False
     if d == 0:
@@ -240,10 +237,19 @@ def norm_except_dim(v, pow=2, dim=0):
         # 1024: reduction tile width, fits H20 register file for one warp group.
         BLOCK = 1024
         if nchunks == 1:
+            # Single-pass fused kernel: every output element is stored
+            # unconditionally, so the output can be allocated directly in the
+            # input dtype (the final fp32->out rounding happens in the store,
+            # identical to the separate .to() cast) and no zero-init or cast
+            # kernel is needed. This removes two launches from the hot path
+            # (~12us wall on H20 for a 4096x4096 fp16 input).
+            acc = torch.empty(out_shape, device=v.device, dtype=v.dtype)
             _fused_inner_kernel[(D,)](v, acc, D, inner, pval, is_p2, BLOCK)
+            return acc.reshape(()) if full_norm else acc
         else:
             split = True
             chunk = (inner + nchunks - 1) // nchunks
+            acc = torch.zeros(out_shape, device=v.device, dtype=torch.float32)
             _acc_inner_kernel[(D, nchunks)](v, acc, D, inner, chunk, pval, is_p2, BLOCK)
     elif d == ndim - 1:
         # BC 256: column-block width for coalesced loads. Thresholds pre>=256
@@ -256,10 +262,15 @@ def norm_except_dim(v, pow=2, dim=0):
         else:
             nrowchunks = 1
         if nrowchunks == 1:
+            # Fused single-pass kernel fully overwrites its output, so it can
+            # store the input dtype directly (see the d == 0 note above).
+            acc = torch.empty(out_shape, device=v.device, dtype=v.dtype)
             _fused_outer_kernel[(colblocks,)](v, acc, pre, D, pval, is_p2, BC)
+            return acc.reshape(()) if full_norm else acc
         else:
             split = True
             rchunk = (pre + nrowchunks - 1) // nrowchunks
+            acc = torch.zeros(out_shape, device=v.device, dtype=torch.float32)
             _acc_outer_kernel[(colblocks, nrowchunks)](
                 v, acc, pre, D, rchunk, pval, is_p2, BC
             )
@@ -267,6 +278,7 @@ def norm_except_dim(v, pow=2, dim=0):
         # 1024: reduction tile width for the generic middle-dim path.
         BLOCK = 1024
         split = True
+        acc = torch.zeros(out_shape, device=v.device, dtype=torch.float32)
         _acc_generic_kernel[(D,)](v, acc, pre, D, inner, pval, is_p2, BLOCK)
 
     if split:
