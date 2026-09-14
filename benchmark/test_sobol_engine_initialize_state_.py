@@ -44,7 +44,9 @@ class SobolInitBenchmark(base.Benchmark):
     def get_input_iter(self, cur_dtype):
         for shape in self.shapes:
             dimension = shape[0]
-            state = torch.zeros((dimension, MAXBIT), dtype=torch.int64, device=self.device)
+            state = torch.zeros(
+                (dimension, MAXBIT), dtype=torch.int64, device=self.device
+            )
             yield state, dimension
 
 
