@@ -44,7 +44,9 @@ MAXBIT = 30
 
 
 def _make_args(dimension, device):
-    sobolstate = torch.randint(0, 2, (dimension, MAXBIT), dtype=torch.long, device=device)
+    sobolstate = torch.randint(
+        0, 2, (dimension, MAXBIT), dtype=torch.long, device=device
+    )
     ltm = torch.randint(
         0, 2, (dimension, MAXBIT, MAXBIT), dtype=torch.long, device=device
     ).tril()
