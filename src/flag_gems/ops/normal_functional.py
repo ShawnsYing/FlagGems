@@ -20,9 +20,8 @@ import torch
 import triton
 import triton.language as tl
 
-from flag_gems.ops.randn import pair_uniform_to_normal_fast, randn_kernel
+from flag_gems.ops.randn import pair_uniform_to_normal_fast
 from flag_gems.runtime import torch_device_fn
-from flag_gems.utils import pointwise_dynamic
 from flag_gems.utils.random_utils import (
     philox_backend_seed_offset,
     uint_to_uniform_float,
