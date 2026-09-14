@@ -138,7 +138,7 @@ def test_cumprod_inplace(shape_dim, dtype):
     ref_out = torch.cumprod(ref_inp, dim=dim).to(dtype)
 
     res_out = flag_gems.cumprod_(inp, dim)
-    
+
     assert res_out.data_ptr() == inp.data_ptr()
     utils.gems_assert_close(res_out, ref_out, dtype, reduce_dim=shape[dim])
 
@@ -150,7 +150,7 @@ def test_cumprod_inplace_long_row_int16():
     ref_out = torch.cumprod(ref_inp, dim=1).to(inp.dtype)
 
     res_out = flag_gems.cumprod_(inp, 1)
-    
+
     assert res_out.data_ptr() == inp.data_ptr()
     utils.gems_assert_close(res_out, ref_out, inp.dtype, reduce_dim=inp.shape[1])
 
@@ -163,7 +163,7 @@ def test_cumprod_inplace_low_precision_multitile(dtype):
     ref_out = torch.cumprod(ref_inp, dim=1).to(inp.dtype)
 
     res_out = flag_gems.cumprod_(inp, 1)
-    
+
     assert res_out.data_ptr() == inp.data_ptr()
     utils.gems_assert_close(res_out, ref_out, inp.dtype, reduce_dim=inp.shape[1])
 
@@ -177,7 +177,7 @@ def test_cumprod_inplace_non_contiguous(dtype):
     ref_out = torch.cumprod(ref_inp, dim=1).to(inp.dtype)
 
     res_out = flag_gems.cumprod_(inp, 1)
-    
+
     assert res_out.data_ptr() == inp.data_ptr()
     utils.gems_assert_close(res_out, ref_out, inp.dtype, reduce_dim=inp.shape[1])
 
@@ -191,7 +191,7 @@ def test_cumprod_inplace_non_contiguous_tile_boundary(dtype):
     ref_out = torch.cumprod(ref_inp, dim=0).to(inp.dtype)
 
     res_out = flag_gems.cumprod_(inp, 0)
-    
+
     assert res_out.data_ptr() == inp.data_ptr()
     utils.gems_assert_close(res_out, ref_out, inp.dtype, reduce_dim=inp.shape[0])
 
@@ -202,8 +202,8 @@ def test_cumprod_inplace_dtype_mismatch():
 
     with pytest.raises(RuntimeError, match="Bad in-place call"):
         inp.cumprod_(1, dtype=torch.int64)
-    
-    
+
+
 @pytest.mark.cumprod_
 def test_cumprod_inplace_bool_unsupported():
     inp = _make_input((4, 9), torch.bool)
