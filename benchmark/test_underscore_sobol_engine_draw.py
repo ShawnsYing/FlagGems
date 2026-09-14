@@ -39,7 +39,7 @@ class SobolDrawBenchmark(base.Benchmark):
             quasi = eng.quasi.to(device=self.device)
             sobolstate = eng.sobolstate.to(device=self.device)
             num_generated = 0
-            yield (quasi, n, sobolstate, dimension, num_generated, cur_dtype)
+            yield (quasi, n, sobolstate, dimension, num_generated)
 
 
 @pytest.mark.underscore_sobol_engine_draw
