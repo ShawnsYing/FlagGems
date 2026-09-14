@@ -4,7 +4,7 @@ from _pytest.mark.structures import Mark, MarkDecorator
 
 import flag_gems
 
-from .accuracy_utils import gems_assert_close, to_reference
+from .accuracy_utils import gems_assert_close
 
 # ``_sobol_engine_scramble_`` starts with an underscore, and ``pytest.mark``
 # refuses to generate a marker via attribute access for such names. Register it
