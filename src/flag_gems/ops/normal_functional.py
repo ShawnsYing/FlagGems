@@ -18,22 +18,76 @@ import logging
 
 import torch
 import triton
+import triton.language as tl
 
-from flag_gems.ops.randn import randn_kernel
+from flag_gems.ops.randn import pair_uniform_to_normal_fast, randn_kernel
 from flag_gems.runtime import torch_device_fn
 from flag_gems.utils import pointwise_dynamic
-from flag_gems.utils.random_utils import philox_backend_seed_offset
+from flag_gems.utils.random_utils import (
+    philox_backend_seed_offset,
+    uint_to_uniform_float,
+)
 from flag_gems.utils.shape_utils import volume
 
 logger = logging.getLogger(__name__)
 
 
-@pointwise_dynamic(
-    is_tensor=[True, False, False], promotion_methods=[(0, 1, 2, "DEFAULT")]
-)
-@triton.jit
-def transform_func_float_float(val, std, mean):
-    return val * std + mean
+@triton.jit(do_not_specialize=["philox_seed", "philox_offset"])
+def _normal_fused_kernel(
+    out_ptr,
+    N,
+    philox_seed,
+    philox_offset,
+    mean,
+    std,
+    BLOCK: tl.constexpr = 512,
+):
+    # Single-pass normal_functional: draw the standard-normal sample and apply
+    # the affine (val * std + mean) transform in the same kernel, so out-of-place
+    # normal costs one launch instead of a randn launch + a separate
+    # pointwise-transform launch + a second full read/write of the buffer.
+    philox_seed = philox_seed.to(tl.int64)
+    philox_offset = philox_offset.to(tl.int64)
+    c0 = (philox_offset & 0xFFFFFFFF).to(tl.uint32)
+    c1 = ((philox_offset >> 32) & 0xFFFFFFFF).to(tl.uint32)
+    i4 = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+    c0 += i4
+    _O = c0 * 0
+    r0, r1, r2, r3 = tl.philox(philox_seed, c0, c1, _O, _O)
+    u0 = uint_to_uniform_float(r0)
+    u1 = uint_to_uniform_float(r1)
+    u2 = uint_to_uniform_float(r2)
+    u3 = uint_to_uniform_float(r3)
+    n0, n1 = pair_uniform_to_normal_fast(u0, u1)
+    n2, n3 = pair_uniform_to_normal_fast(u2, u3)
+    off_0 = tl.program_id(0) * BLOCK * 4 + tl.arange(0, BLOCK)
+    off_1 = off_0 + BLOCK
+    off_2 = off_1 + BLOCK
+    off_3 = off_2 + BLOCK
+    tl.store(
+        out_ptr + off_0,
+        (n0 * std + mean),
+        mask=off_0 < N,
+        eviction_policy="evict_first",
+    )
+    tl.store(
+        out_ptr + off_1,
+        (n1 * std + mean),
+        mask=off_1 < N,
+        eviction_policy="evict_first",
+    )
+    tl.store(
+        out_ptr + off_2,
+        (n2 * std + mean),
+        mask=off_2 < N,
+        eviction_policy="evict_first",
+    )
+    tl.store(
+        out_ptr + off_3,
+        (n3 * std + mean),
+        mask=off_3 < N,
+        eviction_policy="evict_first",
+    )
 
 
 def normal_functional(self, mean=0.0, std=1.0, *, generator=None):
@@ -41,9 +95,11 @@ def normal_functional(self, mean=0.0, std=1.0, *, generator=None):
     shape = self.shape
     device = self.device
 
-    # Out-of-place sibling of normal_: draw standard-normal samples via the
-    # shared philox randn kernel into a fresh tensor of self's dtype, then apply
-    # the affine transform (val * std + mean) out-of-place.
+    # Out-of-place sibling of normal_: draw standard-normal samples with the
+    # philox RNG and apply the affine (val * std + mean) transform in a single
+    # fused kernel — one launch, one write pass, instead of a randn launch
+    # followed by a separate pointwise transform that re-reads and re-writes
+    # the whole buffer.
     UNROLL = 4
     out = torch.empty(shape, device=device, dtype=self.dtype)
     N = volume(shape)
@@ -53,9 +109,6 @@ def normal_functional(self, mean=0.0, std=1.0, *, generator=None):
         increment, generator=generator
     )
     with torch_device_fn.device(device):
-        randn_kernel[grid_fn](out, N, philox_seed, philox_offset)
+        _normal_fused_kernel[grid_fn](out, N, philox_seed, philox_offset, mean, std)
 
-    # Apply the affine transform in-place on the freshly allocated output tensor,
-    # matching the working call pattern in normal_ (out0=...).
-    transform_func_float_float(out, std, mean, out0=out)
     return out
