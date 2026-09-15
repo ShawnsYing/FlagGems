@@ -50,8 +50,7 @@ def test_inner(input_shape, other_shape, dtype):
     ref_inp = utils.to_reference(inp, upcast=True)
     ref_other = utils.to_reference(other, upcast=True)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(ref_inp, ref_other).to(dtype)
 
@@ -65,8 +64,7 @@ def test_inner_1d_dot(dtype):
     inp = torch.randn(4096, dtype=dtype, device=flag_gems.device)
     other = torch.randn(4096, dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(
         utils.to_reference(inp, upcast=True),
@@ -84,8 +82,7 @@ def test_inner_scalar(dtype):
     scalar = torch.randn((), dtype=dtype, device=flag_gems.device)
     other = torch.randn((4, 8), dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(scalar, other)
+    res_out = flag_gems.inner(scalar, other)
 
     ref_out = torch.inner(
         utils.to_reference(scalar, upcast=True),
@@ -103,8 +100,7 @@ def test_inner_matvec(dtype):
     inp = torch.randn((256, 128), dtype=dtype, device=flag_gems.device)
     other = torch.randn(128, dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(
         utils.to_reference(inp, upcast=True),
@@ -123,8 +119,7 @@ def test_inner_empty_contraction(dtype):
     inp = torch.randn((3, 0), dtype=dtype, device=flag_gems.device)
     other = torch.randn((4, 0), dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(
         utils.to_reference(inp),
@@ -143,8 +138,7 @@ def test_inner_2d(dtype):
     inp = torch.randn((128, 64), dtype=dtype, device=flag_gems.device)
     other = torch.randn((256, 64), dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(
         utils.to_reference(inp, upcast=True),
@@ -163,8 +157,7 @@ def test_inner_noncontiguous(dtype):
     inp = torch.randn((64, 128), dtype=dtype, device=flag_gems.device).t()
     other = torch.randn((32, 64), dtype=dtype, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        res_out = torch.inner(inp, other)
+    res_out = flag_gems.inner(inp, other)
 
     ref_out = torch.inner(
         utils.to_reference(inp, upcast=True),
@@ -180,9 +173,8 @@ def test_inner_dtype_mismatch():
     inp = torch.randn((4, 8), dtype=torch.float32, device=flag_gems.device)
     other = torch.randn((4, 8), dtype=torch.float64, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        with pytest.raises(RuntimeError):
-            torch.inner(inp, other)
+    with pytest.raises(RuntimeError):
+        flag_gems.inner(inp, other)
 
 
 @pytest.mark.inner
@@ -190,6 +182,5 @@ def test_inner_contraction_mismatch():
     inp = torch.randn((4, 8), dtype=torch.float32, device=flag_gems.device)
     other = torch.randn((4, 9), dtype=torch.float32, device=flag_gems.device)
 
-    with flag_gems.use_gems():
-        with pytest.raises(RuntimeError):
-            torch.inner(inp, other)
+    with pytest.raises(RuntimeError):
+        flag_gems.inner(inp, other)
