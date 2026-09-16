@@ -7270,6 +7270,8 @@ ops:
   - KernelGen
   kind:
   - LinearAlg
+  stages:
+  - alpha: '5.4'
 - id: irshift
   description: Triton kernel implementation for __irshift__.
   for:
