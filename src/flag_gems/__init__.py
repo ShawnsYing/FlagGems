@@ -793,6 +793,7 @@ _FULL_CONFIG = (
     ("isneginf", isneginf),
     ("isneginf.out", isneginf_out),
     ("isposinf", isposinf),
+    ("isreal", isreal),
     ("kron", kron),
     ("kthvalue", kthvalue),
     ("lcm", lcm),
