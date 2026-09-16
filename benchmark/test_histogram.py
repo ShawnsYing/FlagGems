@@ -15,6 +15,8 @@
 import pytest
 import torch
 
+from flag_gems.ops.histogram import histogram_bin_ct, histogram_bins_tensor
+
 from . import base
 
 
@@ -66,6 +68,7 @@ def test_histogram_bin_ct():
         torch_op=_bin_ct_torch_cpu,
         dtypes=[torch.float32, torch.float64],
     )
+    bench.set_gems(histogram_bin_ct)
     bench.run()
 
 
@@ -89,4 +92,5 @@ def test_histogram_bins_tensor():
         torch_op=_bins_tensor_torch_cpu,
         dtypes=[torch.float32, torch.float64],
     )
+    bench.set_gems(histogram_bins_tensor)
     bench.run()
