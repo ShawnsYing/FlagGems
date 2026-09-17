@@ -12,27 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-server:
-  api: http://10.1.4.213:31080/api/upload/archive
+import pytest
+import torch
 
-backends:
-  H800:
-    enabled: true
-  910B:
-    enabled: true
-  C550:
-    enabled: true
-  BW1000:
-    enabled: true
-  MTT-S5000:
-    enabled: true
-  BI-V150:
-    enabled: true
-  PPU-ZW810E:
-    enabled: true
-  MLU590-M9DE:
-    enabled: true
-  P800:
-    enabled: true
-  W7900D:
-    enabled: true
+from . import base, consts, utils
+
+
+def and_scalar_input_fn(shape, dtype, device):
+    inp = utils.generate_tensor_input(shape, dtype, device)
+    yield inp, 0x3F
+
+
+@pytest.mark.and_scalar
+def test_and_scalar():
+    bench = base.GenericBenchmark(
+        input_fn=and_scalar_input_fn,
+        op_name="and_scalar",
+        torch_op=torch.ops.aten.__and__.Scalar,
+        dtypes=consts.INT_DTYPES + consts.BOOL_DTYPES,
+    )
+    bench.run()
