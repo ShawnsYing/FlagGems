@@ -7597,6 +7597,30 @@ ops:
   - Pointwise
   stages:
   - alpha: '5.4'
+- id: ldexp
+  description: Multiplies input by 2 raised to the power of other, element-wise.
+  for:
+  - ldexp.Tensor
+  labels:
+  - aten
+  - pointwise
+  - KernelGen
+  kind:
+  - Pointwise
+  stages:
+  - alpha: '5.4'
+- id: ldexp_out
+  description: A variant of ldexp() that assigns the output to the out tensor.
+  for:
+  - ldexp.out
+  labels:
+  - aten
+  - pointwise
+  - KernelGen
+  kind:
+  - Pointwise
+  stages:
+  - alpha: '5.4'
 - id: le
   description: Computes that `input` is less than or equal to `other` element-wise.
   for:
@@ -15496,6 +15520,28 @@ ops:
   description: Computes differentiable gradients for a fused GRU cell.
   for:
   - _thnn_differentiable_gru_cell_backward
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - NeuralNetwork
+  stages:
+  - alpha: '5.4'
+- id: thnn_fused_gru_cell
+  description: Computes the fused GRU cell forward pass and backward workspace.
+  for:
+  - _thnn_fused_gru_cell
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - NeuralNetwork
+  stages:
+  - alpha: '5.4'
+- id: thnn_fused_gru_cell_out
+  description: Writes the fused GRU cell output and workspace to provided tensors.
+  for:
+  - _thnn_fused_gru_cell.out
   labels:
   - aten
   - KernelGen

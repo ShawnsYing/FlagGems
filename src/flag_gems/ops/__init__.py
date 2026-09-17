@@ -155,6 +155,10 @@ from flag_gems.ops._sparse_semi_structured_mm import _sparse_semi_structured_mm
 from flag_gems.ops._thnn_differentiable_gru_cell_backward import (
     _thnn_differentiable_gru_cell_backward,
 )
+from flag_gems.ops._thnn_fused_gru_cell import (
+    _thnn_fused_gru_cell,
+    _thnn_fused_gru_cell_out,
+)
 from flag_gems.ops._thnn_fused_lstm_cell import _thnn_fused_lstm_cell
 from flag_gems.ops._thnn_fused_lstm_cell_backward import _thnn_fused_lstm_cell_backward
 from flag_gems.ops._thnn_fused_lstm_cell_backward_impl import (
@@ -224,6 +228,7 @@ from flag_gems.ops.alpha_dropout_ import alpha_dropout_
 from flag_gems.ops.amax import amax
 from flag_gems.ops.amin import amin, amin_
 from flag_gems.ops.aminmax import aminmax
+from flag_gems.ops.and_tensor import and_tensor
 from flag_gems.ops.angle import angle
 from flag_gems.ops.any import any, any_dim, any_dims
 from flag_gems.ops.arange import arange, arange_start
@@ -574,6 +579,7 @@ from flag_gems.ops.kron import kron
 from flag_gems.ops.kthvalue import kthvalue
 from flag_gems.ops.layernorm import layer_norm, layer_norm_backward
 from flag_gems.ops.lcm import lcm, lcm_
+from flag_gems.ops.ldexp import ldexp, ldexp_out
 from flag_gems.ops.ldl_factor_ex import ldl_factor_ex
 from flag_gems.ops.le import le, le_scalar
 from flag_gems.ops.le_ import le_, le_scalar_
@@ -1231,6 +1237,8 @@ __all__ = [
     "_sparse_semi_structured_linear",
     "_sparse_semi_structured_mm",
     "_thnn_differentiable_gru_cell_backward",
+    "_thnn_fused_gru_cell",
+    "_thnn_fused_gru_cell_out",
     "_thnn_fused_lstm_cell",
     "_thnn_fused_lstm_cell_backward",
     "_thnn_fused_lstm_cell_backward_impl",
@@ -1304,6 +1312,7 @@ __all__ = [
     "amin",
     "amin_",
     "aminmax",
+    "and_tensor",
     "angle",
     "any",
     "any_dim",
@@ -1703,6 +1712,8 @@ __all__ = [
     "layer_norm_backward",
     "lcm",
     "lcm_",
+    "ldexp",
+    "ldexp_out",
     "ldl_factor",
     "ldl_factor_ex",
     "le",
