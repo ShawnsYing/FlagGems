@@ -38,17 +38,35 @@ def _next_below(x, DT: tl.constexpr):
     Used to build the exclusive upper bound of the sampling interval in the
     *output* dtype: ``uniform`` samples from ``[from, to)``, so a value that
     rounds up to ``to`` in a low-precision dtype must be stepped back one ulp.
+
+    A zero input needs care: the bit patterns of ``+0.0`` and ``-0.0`` are the
+    bottom of the positive block and the top of the negative block, so the
+    usual "-1 for x >= 0, +1 otherwise" step walks *out* of the number line and
+    wraps around -- ``+0.0`` (0) minus one is all-ones, and ``-0.0``
+    (0x8000...0) plus one is all-ones too, both of which are NaN. The true
+    predecessor of either zero is ``-smallest_subnormal``, so a zero input is
+    answered directly as the negation of the smallest positive subnormal.
     """
-    step = tl.where(x >= 0, -1, 1)
+    zero = x == 0
     if DT == tl.float32:
         bits = x.to(tl.int32, bitcast=True)
-        return (bits + step.to(tl.int32)).to(tl.float32, bitcast=True)
+        step = tl.where(x >= 0, -1, 1).to(tl.int32)
+        stepped = (bits + step).to(tl.float32, bitcast=True)
+        # smallest positive subnormal: the bit pattern with a lone low bit.
+        tiny = tl.full((), 1, tl.int32).to(tl.float32, bitcast=True)
+        return tl.where(zero, -tiny, stepped).to(tl.float32)
     elif DT == tl.float64:
         bits = x.to(tl.int64, bitcast=True)
-        return (bits + step.to(tl.int64)).to(tl.float64, bitcast=True)
+        step = tl.where(x >= 0, -1, 1).to(tl.int64)
+        stepped = (bits + step).to(tl.float64, bitcast=True)
+        tiny = tl.full((), 1, tl.int64).to(tl.float64, bitcast=True)
+        return tl.where(zero, -tiny, stepped).to(tl.float64)
     else:
         bits = x.to(tl.int16, bitcast=True)
-        return (bits + step.to(tl.int16)).to(DT, bitcast=True)
+        step = tl.where(x >= 0, -1, 1).to(tl.int16)
+        stepped = (bits + step).to(DT, bitcast=True)
+        tiny = tl.full((), 1, tl.int16).to(DT, bitcast=True)
+        return tl.where(zero, -tiny, stepped).to(DT)
 
 
 @triton.heuristics(runtime.get_heuristic_config("uniform"))

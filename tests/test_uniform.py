@@ -53,3 +53,22 @@ def test_uniform_rejects_inverted_interval():
     x = torch.randn(size=(8,), dtype=torch.float32, device=flag_gems.device)
     with pytest.raises(RuntimeError, match=r"\[from, to\)"):
         flag_gems.uniform(x, 3.0, -1.0)
+
+
+@pytest.mark.uniform
+@pytest.mark.parametrize("dtype", utils.FLOAT_DTYPES)
+def test_uniform_upper_bound_zero(dtype):
+    # `to == +0.0` is the case the one-ulp upper clamp used to get wrong: the
+    # zero bit pattern is read as a small positive integer by the bitwise step,
+    # so stepping "below" it wraps out of the number line onto an all-ones NaN.
+    # `tl.minimum` then silently returns the sampled value, i.e. values at (or
+    # above) the exclusive bound leak out. The interval below is chosen so the
+    # clamp actually engages for low-precision dtypes (the scaled values round
+    # up to the bound), which is what makes this a regression test rather than
+    # a tautology.
+    x = torch.empty(size=(2**20,), dtype=dtype, device=flag_gems.device)
+    out = flag_gems.uniform(x, -1e-6, 0.0)
+
+    assert not torch.isnan(out).any()
+    assert (out < 0.0).all()
+    assert (out >= -1e-6).all()
