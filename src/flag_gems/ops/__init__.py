@@ -236,6 +236,7 @@ from flag_gems.ops.alpha_dropout_ import alpha_dropout_
 from flag_gems.ops.amax import amax
 from flag_gems.ops.amin import amin, amin_
 from flag_gems.ops.aminmax import aminmax
+from flag_gems.ops.and_scalar import and_scalar
 from flag_gems.ops.and_tensor import and_tensor
 from flag_gems.ops.angle import angle
 from flag_gems.ops.any import any, any_dim, any_dims
@@ -681,6 +682,7 @@ from flag_gems.ops.log_softmax import (
 from flag_gems.ops.logaddexp import logaddexp, logaddexp_out
 from flag_gems.ops.logaddexp2 import logaddexp2, logaddexp2_out
 from flag_gems.ops.logcumsumexp import logcumsumexp, logcumsumexp_out
+from flag_gems.ops.logdet import logdet
 from flag_gems.ops.logical_and import logical_and, logical_and_
 from flag_gems.ops.logical_not import logical_not, logical_not_
 from flag_gems.ops.logical_or import logical_or, logical_or_
@@ -747,11 +749,18 @@ from flag_gems.ops.mvlgamma import mvlgamma
 from flag_gems.ops.mvlgamma_ import mvlgamma_
 from flag_gems.ops.nan_to_num import nan_to_num
 from flag_gems.ops.nan_to_num_ import nan_to_num_
+from flag_gems.ops.nanmean import nanmean, nanmean_out
 from flag_gems.ops.nanmedian import (
     nanmedian,
     nanmedian_dim,
     nanmedian_dim_values,
     nanmedian_out,
+)
+from flag_gems.ops.nanquantile import (
+    nanquantile,
+    nanquantile_out,
+    nanquantile_scalar,
+    nanquantile_scalar_out,
 )
 from flag_gems.ops.nansum import nansum, nansum_out
 from flag_gems.ops.narrow import narrow
@@ -1063,6 +1072,10 @@ from flag_gems.ops.tan import tan, tan_
 from flag_gems.ops.tanh import tanh, tanh_, tanh_backward
 from flag_gems.ops.te_rmsnorm import te_rmsnorm_bwd, te_rmsnorm_fwd
 from flag_gems.ops.tensor_split import tensor_split
+from flag_gems.ops.thnn_fused_gru_cell_backward import (
+    _thnn_fused_gru_cell_backward,
+    _thnn_fused_gru_cell_backward_out,
+)
 from flag_gems.ops.threshold import threshold, threshold_backward
 from flag_gems.ops.threshold_ import threshold_
 from flag_gems.ops.tile import tile
@@ -1249,6 +1262,8 @@ __all__ = [
     "_sparse_semi_structured_mm",
     "_thnn_differentiable_gru_cell_backward",
     "_thnn_fused_gru_cell",
+    "_thnn_fused_gru_cell_backward",
+    "_thnn_fused_gru_cell_backward_out",
     "_thnn_fused_gru_cell_out",
     "_thnn_fused_lstm_cell",
     "_thnn_fused_lstm_cell_backward",
@@ -1325,6 +1340,7 @@ __all__ = [
     "amin",
     "amin_",
     "aminmax",
+    "and_scalar",
     "and_tensor",
     "angle",
     "any",
@@ -1835,6 +1851,7 @@ __all__ = [
     "logaddexp_out",
     "logcumsumexp",
     "logcumsumexp_out",
+    "logdet",
     "logical_and",
     "logical_and_",
     "logical_not",
@@ -1911,10 +1928,16 @@ __all__ = [
     "mvlgamma_",
     "nan_to_num",
     "nan_to_num_",
+    "nanmean",
+    "nanmean_out",
     "nanmedian",
     "nanmedian_dim",
     "nanmedian_dim_values",
     "nanmedian_out",
+    "nanquantile",
+    "nanquantile_out",
+    "nanquantile_scalar",
+    "nanquantile_scalar_out",
     "nansum",
     "nansum_out",
     "narrow",
