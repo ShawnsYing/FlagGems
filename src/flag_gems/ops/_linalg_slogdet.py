@@ -41,91 +41,76 @@ def _slogdet_kernel(
     stride_lu,
     BLOCK_SIZE: tl.constexpr,
 ):
+    """LU with partial pivoting for one square matrix, held in registers.
+
+    One program per matrix. The whole ``BLOCK_SIZE x BLOCK_SIZE`` tile lives in
+    registers, so the elimination inner loop is vectorized instead of issuing
+    one load/store per element. ``A_input`` is a scratch copy and is overwritten
+    with the factorization.
     """
-    Compute slogdet for square matrices using Gaussian elimination with partial
-    pivoting. Each program handles one matrix in the batch and also writes back
-    the in-place LU factorization.
-    """
-    # Get the matrix index (batch index)
     pid = tle.program_id(0)
 
-    # Initialize sign to 1.0 and logabsdet to 0.0
-    sign = 1.0
-    logabsdet = 0.0
+    rows = tl.arange(0, BLOCK_SIZE)
+    cols = tl.arange(0, BLOCK_SIZE)
+    offsets = rows[:, None] * stride_a + cols[None, :]
+    load_mask = (rows[:, None] < n) & (cols[None, :] < n)
+    work = tl.load(A_input + pid * M * stride_a + offsets, mask=load_mask, other=0.0)
 
-    # Get the starting pointer for this matrix
-    A_mat = A_input + pid * M * stride_a
+    swap_count = tl.zeros((), dtype=tl.int32)
+
+    for k in range(0, n):
+        # pivot: index of the largest |value| in column k at or below the
+        # diagonal. Rows above k (already eliminated) are excluded.
+        col_k = tl.sum(tl.where(cols[None, :] == k, work, 0.0), axis=1)
+        abs_col = tl.abs(col_k)
+        abs_col = tl.where((rows < k) | (rows >= n), -1.0, abs_col)
+        pivot_val = tl.max(abs_col, axis=0)
+        pivot_row = tl.min(tl.where(abs_col == pivot_val, rows, BLOCK_SIZE), axis=0)
+
+        # swap row k with the pivot row
+        row_k = tl.sum(tl.where(rows[:, None] == k, work, 0.0), axis=0)
+        row_p = tl.sum(tl.where(rows[:, None] == pivot_row, work, 0.0), axis=0)
+        work = tl.where(rows[:, None] == k, row_p[None, :], work)
+        work = tl.where(rows[:, None] == pivot_row, row_k[None, :], work)
+        swap_count = tl.where(pivot_row != k, swap_count + 1, swap_count)
+
+        # eliminate below the pivot. A zero pivot leaves the trailing submatrix
+        # untouched; the zero diagonal is detected after the loop.
+        col_k = tl.sum(tl.where(cols[None, :] == k, work, 0.0), axis=1)
+        pivot = tl.sum(tl.where(rows == k, col_k, 0.0), axis=0)
+        safe_pivot = tl.where(pivot == 0.0, 1.0, pivot)
+        multipliers = tl.where(rows > k, col_k / safe_pivot, 0.0)
+        u_row = row_p
+        update_mask = (rows[:, None] > k) & (cols[None, :] > k)
+        work = tl.where(update_mask, work - multipliers[:, None] * u_row[None, :], work)
+
+    # store the factorization in the caller's LU buffer
+    store_mask = (rows[:, None] < n) & (cols[None, :] < n)
+    tl.store(LU_out + pid * M * stride_lu + offsets, work, mask=store_mask)
+
+    # sign / logabsdet from the diagonal. Only an exactly zero diagonal entry
+    # means a singular matrix: comparing against a fixed epsilon would call
+    # diag([1e-11, 1]) singular while ATen returns a finite logabsdet for it.
+    diag = tl.sum(tl.where(rows[:, None] == cols[None, :], work, 0.0), axis=0)
+    diag = tl.where(cols < n, diag, 1.0)
+
+    any_zero = tl.max(tl.where(diag == 0.0, 1, 0), axis=0)
+    safe_diag = tl.where(diag == 0.0, 1.0, diag)
+
+    logabsdet = tl.sum(tl.log(tl.abs(safe_diag)), axis=0)
+    neg_count = tl.sum(tl.where(safe_diag < 0.0, 1, 0), axis=0)
+    nan_count = tl.sum(tl.where(safe_diag != safe_diag, 1, 0), axis=0)
+
+    sign = tl.where((neg_count + swap_count) % 2 == 0, 1.0, -1.0)
+    # NaN anywhere on the diagonal: ATen reports sign 0 and a NaN logabsdet.
+    sign = tl.where(nan_count > 0, 0.0, sign)
+    sign = tl.where(any_zero > 0, 0.0, sign)
+    logabsdet = tl.where(any_zero > 0, -float("inf"), logabsdet)
+
     sign_out_mat = sign_out + pid * stride_sign
     logabsdet_out_mat = logabsdet_out + pid * stride_logabsdet
-    LU_out_mat = LU_out + pid * stride_lu
-
-    # Gaussian elimination with partial pivoting.
-    is_singular = 0
-    for k in range(0, n):
-        max_row = tl.full((), k, tl.int32)
-        pivot = tl.load(A_mat + k * stride_a + k).to(tl.float32)
-        max_abs = tl.abs(pivot)
-
-        for i in range(k + 1, n):
-            cand = tl.load(A_mat + i * stride_a + k).to(tl.float32)
-            cand_abs = tl.abs(cand)
-            max_row = tl.where(cand_abs > max_abs, i, max_row)
-            max_abs = tl.maximum(max_abs, cand_abs)
-
-        is_singular = tl.where(max_abs <= 1e-10, 1, is_singular)
-
-        if max_abs > 1e-10:
-            needs_swap = max_row != k
-            for j in range(0, n):
-                row_k = tl.load(A_mat + k * stride_a + j)
-                row_p = tl.load(A_mat + max_row * stride_a + j)
-                tl.store(A_mat + k * stride_a + j, row_p)
-                tl.store(A_mat + max_row * stride_a + j, row_k)
-            sign = tl.where(needs_swap, -sign, sign)
-
-            pivot = tl.load(A_mat + k * stride_a + k).to(tl.float32)
-            for i in range(k + 1, n):
-                a_ik = tl.load(A_mat + i * stride_a + k).to(tl.float32)
-                factor = a_ik / pivot
-                tl.store(A_mat + i * stride_a + k, factor.to(A_mat.dtype.element_ty))
-
-                for j in range(k + 1, n):
-                    a_ij = tl.load(A_mat + i * stride_a + j).to(tl.float32)
-                    a_kj = tl.load(A_mat + k * stride_a + j).to(tl.float32)
-                    new_val = a_ij - factor * a_kj
-                    tl.store(
-                        A_mat + i * stride_a + j,
-                        new_val.to(A_mat.dtype.element_ty),
-                    )
-    # Compute logabsdet from diagonal elements
-    for i in range(n):
-        diag = tl.load(A_mat + i * stride_a + i).to(tl.float32)
-        diag_abs = tl.abs(diag)
-
-        # Handle near-zero diagonal elements (singular matrix)
-        diag_is_zero = diag_abs < 1e-10
-        is_singular = tl.where(diag_is_zero, 1, is_singular)
-        diag_abs = tl.where(diag_is_zero, 1.0, diag_abs)
-
-        # Update sign based on diagonal element
-        diag_sign = tl.where(diag > 0, 1.0, tl.where(diag < 0, -1.0, 0.0))
-        sign = sign * diag_sign
-
-        # Add to logabsdet
-        logabsdet = logabsdet + tl.log(diag_abs)
-
-    sign = tl.where(is_singular != 0, 0.0, sign)
-    logabsdet = tl.where(is_singular != 0, -float("inf"), logabsdet)
-
-    # Copy the LU decomposition to output
-    for i in range(n):
-        for j in range(n):
-            val = tl.load(A_mat + i * stride_a + j)
-            tl.store(LU_out_mat + i * stride_lu + j, val)
-
-    # Store results
-    tl.store(sign_out_mat, sign.to(sign_out_mat.dtype.element_ty))
-    tl.store(logabsdet_out_mat, logabsdet.to(logabsdet_out_mat.dtype.element_ty))
+    tl.store(sign_out_mat, sign.to(sign_out.dtype.element_ty))
+    tl.store(logabsdet_out_mat, logabsdet.to(logabsdet_out.dtype.element_ty))
 
 
 def _linalg_slogdet(A):
@@ -188,8 +173,18 @@ def _linalg_slogdet(A):
     # Launch kernel
     grid = (batch_size,)
 
-    # Choose block size based on matrix size
-    block_size = 32 if n <= 32 else 64
+    # The whole matrix is held in registers as one (BLOCK_SIZE, BLOCK_SIZE)
+    # tile, so the block must cover n. 128x128 is the largest fp32 tile that
+    # still fits the register budget; beyond it this single-program formulation
+    # is not viable (the previous scalar loop did run, but at 26 ms for a
+    # 128x128 matrix, so refusing is both faster and clearer than silently
+    # degrading).
+    block_size = max(16, triton.next_power_of_2(n))
+    if block_size > 128:
+        raise NotImplementedError(
+            f"_linalg_slogdet: matrices larger than 128x128 are not supported yet, "
+            f"got {n}x{n}"
+        )
 
     with torch_device_fn.device(A.device):
         _slogdet_kernel[grid](
