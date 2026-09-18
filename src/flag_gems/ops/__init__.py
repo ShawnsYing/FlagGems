@@ -213,6 +213,7 @@ from flag_gems.ops.adaptive_avg_pool3d_backward import (
     _adaptive_avg_pool3d_backward,
     adaptive_avg_pool3d_backward_grad_input,
 )
+from flag_gems.ops.adaptive_max_pool1d import adaptive_max_pool1d
 from flag_gems.ops.adaptive_max_pool2d import adaptive_max_pool2d
 from flag_gems.ops.adaptive_max_pool2d_backward import adaptive_max_pool2d_backward
 from flag_gems.ops.adaptive_max_pool3d import adaptive_max_pool3d
@@ -236,6 +237,7 @@ from flag_gems.ops.alpha_dropout_ import alpha_dropout_
 from flag_gems.ops.amax import amax
 from flag_gems.ops.amin import amin, amin_
 from flag_gems.ops.aminmax import aminmax
+from flag_gems.ops.and_scalar import and_scalar
 from flag_gems.ops.and_tensor import and_tensor
 from flag_gems.ops.angle import angle
 from flag_gems.ops.any import any, any_dim, any_dims
@@ -387,6 +389,7 @@ from flag_gems.ops.cumsum_ import cumsum_
 from flag_gems.ops.cumulative_trapezoid import cumulative_trapezoid
 from flag_gems.ops.deg2rad import deg2rad, deg2rad_, deg2rad_out
 from flag_gems.ops.dequantize import dequantize
+from flag_gems.ops.det import det
 from flag_gems.ops.diag import diag
 from flag_gems.ops.diag_embed import diag_embed
 from flag_gems.ops.diagonal import diagonal_backward
@@ -552,6 +555,7 @@ from flag_gems.ops.hardtanh_backward import hardtanh_backward
 from flag_gems.ops.hash_tensor import hash_tensor
 from flag_gems.ops.heaviside import heaviside
 from flag_gems.ops.heaviside_ import heaviside_
+from flag_gems.ops.hinge_embedding_loss import hinge_embedding_loss
 from flag_gems.ops.histc import histc
 from flag_gems.ops.histogramdd import histogramdd
 from flag_gems.ops.hsplit import hsplit
@@ -680,6 +684,7 @@ from flag_gems.ops.log_softmax import (
 from flag_gems.ops.logaddexp import logaddexp, logaddexp_out
 from flag_gems.ops.logaddexp2 import logaddexp2, logaddexp2_out
 from flag_gems.ops.logcumsumexp import logcumsumexp, logcumsumexp_out
+from flag_gems.ops.logdet import logdet
 from flag_gems.ops.logical_and import logical_and, logical_and_
 from flag_gems.ops.logical_not import logical_not, logical_not_
 from flag_gems.ops.logical_or import logical_or, logical_or_
@@ -747,11 +752,18 @@ from flag_gems.ops.mvlgamma import mvlgamma
 from flag_gems.ops.mvlgamma_ import mvlgamma_
 from flag_gems.ops.nan_to_num import nan_to_num
 from flag_gems.ops.nan_to_num_ import nan_to_num_
+from flag_gems.ops.nanmean import nanmean, nanmean_out
 from flag_gems.ops.nanmedian import (
     nanmedian,
     nanmedian_dim,
     nanmedian_dim_values,
     nanmedian_out,
+)
+from flag_gems.ops.nanquantile import (
+    nanquantile,
+    nanquantile_out,
+    nanquantile_scalar,
+    nanquantile_scalar_out,
 )
 from flag_gems.ops.nansum import nansum, nansum_out
 from flag_gems.ops.narrow import narrow
@@ -825,6 +837,10 @@ from flag_gems.ops.quantized_gru import (
     quantized_gru_input,
 )
 from flag_gems.ops.quantized_lstm import quantized_lstm
+from flag_gems.ops.quantized_max_pool3d import (
+    quantized_max_pool3d,
+    quantized_max_pool3d_out,
+)
 from flag_gems.ops.rad2deg import rad2deg, rad2deg_
 from flag_gems.ops.rand import rand
 from flag_gems.ops.rand_like import rand_like
@@ -834,6 +850,7 @@ from flag_gems.ops.randn import randn
 from flag_gems.ops.randn_like import randn_like
 from flag_gems.ops.randperm import randperm
 from flag_gems.ops.range import range
+from flag_gems.ops.real import real, real_conjugate, real_device
 from flag_gems.ops.reciprocal import reciprocal, reciprocal_
 from flag_gems.ops.reflection_pad1d import reflection_pad1d, reflection_pad1d_out
 from flag_gems.ops.reflection_pad1d_backward import reflection_pad1d_backward
@@ -973,6 +990,7 @@ from flag_gems.ops.special_gammainc import special_gammainc
 from flag_gems.ops.special_gammaincc import special_gammaincc
 from flag_gems.ops.special_gammaln import special_gammaln, special_gammaln_out
 from flag_gems.ops.special_hermite_polynomial_h import special_hermite_polynomial_h
+from flag_gems.ops.special_i0 import special_i0, special_i0_out
 from flag_gems.ops.special_i0e import special_i0e, special_i0e_out
 from flag_gems.ops.special_i1 import special_i1, special_i1_out
 from flag_gems.ops.special_i1e import special_i1e, special_i1e_out
@@ -1052,6 +1070,7 @@ from flag_gems.ops.sum import sum, sum_dim, sum_dim_out, sum_out
 from flag_gems.ops.sum_to_size import sum_to_size
 from flag_gems.ops.svd import svd
 from flag_gems.ops.sym_constrain_range import sym_constrain_range
+from flag_gems.ops.sym_numel import sym_numel
 from flag_gems.ops.sym_size import sym_size
 from flag_gems.ops.sym_storage_offset import sym_storage_offset
 from flag_gems.ops.sym_stride import sym_stride
@@ -1063,6 +1082,10 @@ from flag_gems.ops.tan import tan, tan_
 from flag_gems.ops.tanh import tanh, tanh_, tanh_backward
 from flag_gems.ops.te_rmsnorm import te_rmsnorm_bwd, te_rmsnorm_fwd
 from flag_gems.ops.tensor_split import tensor_split
+from flag_gems.ops.thnn_fused_gru_cell_backward import (
+    _thnn_fused_gru_cell_backward,
+    _thnn_fused_gru_cell_backward_out,
+)
 from flag_gems.ops.threshold import threshold, threshold_backward
 from flag_gems.ops.threshold_ import threshold_
 from flag_gems.ops.tile import tile
@@ -1249,6 +1272,8 @@ __all__ = [
     "_sparse_semi_structured_mm",
     "_thnn_differentiable_gru_cell_backward",
     "_thnn_fused_gru_cell",
+    "_thnn_fused_gru_cell_backward",
+    "_thnn_fused_gru_cell_backward_out",
     "_thnn_fused_gru_cell_out",
     "_thnn_fused_lstm_cell",
     "_thnn_fused_lstm_cell_backward",
@@ -1287,6 +1312,7 @@ __all__ = [
     "adaptive_avg_pool1d",
     "adaptive_avg_pool2d",
     "adaptive_avg_pool3d_backward_grad_input",
+    "adaptive_max_pool1d",
     "adaptive_max_pool2d",
     "adaptive_max_pool2d_backward",
     "adaptive_max_pool3d",
@@ -1325,6 +1351,7 @@ __all__ = [
     "amin",
     "amin_",
     "aminmax",
+    "and_scalar",
     "and_tensor",
     "angle",
     "any",
@@ -1499,6 +1526,7 @@ __all__ = [
     "deg2rad_",
     "deg2rad_out",
     "dequantize",
+    "det",
     "diag",
     "diag_embed",
     "diagonal_backward",
@@ -1676,6 +1704,7 @@ __all__ = [
     "hash_tensor",
     "heaviside",
     "heaviside_",
+    "hinge_embedding_loss",
     "histc",
     "histogramdd",
     "hsplit",
@@ -1834,6 +1863,7 @@ __all__ = [
     "logaddexp_out",
     "logcumsumexp",
     "logcumsumexp_out",
+    "logdet",
     "logical_and",
     "logical_and_",
     "logical_not",
@@ -1911,10 +1941,16 @@ __all__ = [
     "mvlgamma_",
     "nan_to_num",
     "nan_to_num_",
+    "nanmean",
+    "nanmean_out",
     "nanmedian",
     "nanmedian_dim",
     "nanmedian_dim_values",
     "nanmedian_out",
+    "nanquantile",
+    "nanquantile_out",
+    "nanquantile_scalar",
+    "nanquantile_scalar_out",
     "nansum",
     "nansum_out",
     "narrow",
@@ -1991,6 +2027,8 @@ __all__ = [
     "quantized_gru_impl",
     "quantized_gru_input",
     "quantized_lstm",
+    "quantized_max_pool3d",
+    "quantized_max_pool3d_out",
     "rad2deg",
     "rad2deg_",
     "rand",
@@ -2001,6 +2039,9 @@ __all__ = [
     "randn_like",
     "randperm",
     "range",
+    "real",
+    "real_conjugate",
+    "real_device",
     "reciprocal",
     "reciprocal_",
     "reflection_pad1d",
@@ -2162,6 +2203,8 @@ __all__ = [
     "special_gammaln",
     "special_gammaln_out",
     "special_hermite_polynomial_h",
+    "special_i0",
+    "special_i0_out",
     "special_i0e",
     "special_i0e_out",
     "special_i1",
@@ -2235,6 +2278,7 @@ __all__ = [
     "SUPPORTED_FP8_DTYPE",
     "svd",
     "sym_constrain_range",
+    "sym_numel",
     "sym_size",
     "sym_storage_offset",
     "sym_stride",
