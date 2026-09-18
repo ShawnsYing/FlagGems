@@ -70,6 +70,7 @@ AUTOGRAD_DISPATCH_KEY = torch._C.DispatchKey.Autograd.name
 CONJUGATE_DISPATCH_KEY = torch._C.DispatchKey.Conjugate.name
 QUANTIZED_CUDA_DISPATCH_KEY = torch._C.DispatchKey.QuantizedCUDA.name
 SPARSE_CSR_DISPATCH_KEY = "SparseCsr" + backend_info.dispatch_key
+SPARSE_DISPATCH_KEY = "Sparse" + backend_info.dispatch_key
 QUANTIZED_DISPATCH_KEY = "Quantized" + backend_info.dispatch_key
 
 
@@ -241,6 +242,7 @@ _FULL_CONFIG = (
     ),
     ("_native_multi_head_attention", _native_multi_head_attention),
     ("_nested_from_padded_tensor", _nested_from_padded_tensor),
+    ("_nested_select_backward", _nested_select_backward),
     ("_nested_sum_backward", _nested_sum_backward),
     ("_nested_tensor_from_mask_left_aligned", _nested_tensor_from_mask_left_aligned),
     ("_nested_view_from_buffer_copy", _nested_view_from_buffer_copy),
@@ -313,6 +315,7 @@ _FULL_CONFIG = (
         to_copy,
         lambda: version.parse(torch.__version__) >= version.parse("2.4"),
     ),
+    ("_transformer_encoder_layer_fwd", _transformer_encoder_layer_fwd),
     ("_unique2", _unique2),
     ("_unsafe_index", unsafe_index),
     ("_unsafe_index_put", unsafe_index_put),
@@ -471,6 +474,7 @@ _FULL_CONFIG = (
     ("baddbmm", baddbmm),
     ("baddbmm.out", baddbmm_out),
     ("baddbmm_", baddbmm_),
+    ("batch_norm_gather_stats_with_counts", batch_norm_gather_stats_with_counts),
     ("bernoulli", bernoulli),
     ("bernoulli_.float", bernoulli_),
     ("bilinear", bilinear),
@@ -693,6 +697,7 @@ _FULL_CONFIG = (
         fake_quantize_per_tensor_affine_cachemask_backward,
     ),
     ("feature_alpha_dropout", feature_alpha_dropout),
+    ("feature_alpha_dropout_", feature_alpha_dropout_),
     ("feature_dropout", feature_dropout),
     ("feature_dropout_", feature_dropout_),
     ("fft_irfftn", fft_irfftn),
@@ -842,12 +847,14 @@ _FULL_CONFIG = (
     ("isneginf", isneginf),
     ("isneginf.out", isneginf_out),
     ("isposinf", isposinf),
+    ("isreal", isreal),
     ("kron", kron),
     ("kthvalue", kthvalue),
     ("lcm", lcm),
     ("lcm_", lcm_),
     ("ldexp.out", ldexp_out),
     ("ldexp.Tensor", ldexp),
+    ("ldexp_", ldexp_),
     ("le.Scalar", le_scalar),
     ("le.Tensor", le),
     ("le_.Scalar", le_scalar_),
@@ -1262,6 +1269,7 @@ _FULL_CONFIG = (
     ("sigmoid_backward", sigmoid_backward),
     ("sign", sign),
     ("sign.out", sign_out),
+    ("sign_", sign_),
     ("signbit", signbit),
     ("signbit.out", signbit_out),
     ("silu", silu),
@@ -1390,6 +1398,8 @@ _FULL_CONFIG = (
     ("square.out", square_out),
     ("square_", square_),
     ("squeeze_copy", squeeze_copy),
+    ("sspaddmm", sspaddmm, None, (SPARSE_DISPATCH_KEY,)),
+    ("sspaddmm.out", sspaddmm_out, None, (SPARSE_DISPATCH_KEY,)),
     ("stack", stack),
     ("std.correction", std),
     (
@@ -1450,6 +1460,8 @@ _FULL_CONFIG = (
     ("tanh_", tanh_),
     ("tanh_backward", tanh_backward),
     ("tensor_split", tensor_split),
+    ("tensordot", tensordot),
+    ("tensordot.out", tensordot_out),
     ("threshold", threshold),
     ("threshold_", threshold_),
     ("threshold_backward", threshold_backward),
@@ -1480,6 +1492,7 @@ _FULL_CONFIG = (
     ("unfold", unfold),
     ("unfold_backward", unfold_backward),
     ("unfold_copy", unfold_copy),
+    ("uniform", uniform),
     ("uniform_", uniform_),
     ("unique_consecutive", unique_consecutive),
     ("unique_dim", unique_dim),
@@ -1494,6 +1507,11 @@ _FULL_CONFIG = (
     ("upsample_nearest1d", upsample_nearest1d),
     ("upsample_nearest2d", upsample_nearest2d),
     ("upsample_nearest3d", upsample_nearest3d),
+    ("upsample_nearest3d_backward", upsample_nearest3d_backward),
+    (
+        "upsample_nearest3d_backward.grad_input",
+        upsample_nearest3d_backward_grad_input,
+    ),
     ("upsample_trilinear3d", upsample_trilinear3d),
     ("upsample_trilinear3d_backward", upsample_trilinear3d_backward),
     ("value_selecting_reduction_backward", value_selecting_reduction_backward),
