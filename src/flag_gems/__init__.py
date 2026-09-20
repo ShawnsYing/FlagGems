@@ -850,6 +850,7 @@ _FULL_CONFIG = (
     ("index_select", index_select),
     ("index_select_backward", index_select_backward),
     ("inner", inner),
+    ("inverse", inverse),
     ("is_nonzero", is_nonzero),
     ("is_same_size", is_same_size),
     ("isclose", isclose),
