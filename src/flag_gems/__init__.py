@@ -193,6 +193,7 @@ _FULL_CONFIG = (
     ("_fused_rms_norm_backward", _fused_rms_norm_backward),
     ("_fused_sgd_", _fused_sgd_),
     ("_fused_sgd_.tensor_lr", _fused_sgd__tensor_lr),
+    ("_gather_sparse_backward", _gather_sparse_backward),
     ("_grouped_mm", group_mm),
     (
         "_has_compatible_shallow_copy_type",
@@ -225,6 +226,7 @@ _FULL_CONFIG = (
     ("_log_softmax.out", log_softmax_out),
     ("_log_softmax_backward_data", log_softmax_backward),
     ("_log_softmax_backward_data.out", log_softmax_backward_out),
+    ("_lu_with_info", _lu_with_info),
     ("_make_dep_token", _make_dep_token),
     ("_masked_scale", _masked_scale),
     ("_masked_softmax", _masked_softmax),
