@@ -11773,6 +11773,19 @@ ops:
   - NeuralNetwork
   stages:
   - alpha: '5.5'
+- id: pad_packed_sequence
+  description: |
+    Pads a packed batch of variable length sequences back into a dense
+    (T, B, *) tensor together with the per-batch-element sequence lengths.
+  for:
+  - _pad_packed_sequence
+  labels:
+  - aten
+  - KernelGen
+  kind:
+  - Tensor
+  stages:
+  - alpha: '5.5.0'
 - id: pad_sequence
   description: Pads a list of variable length tensors with a given padding value and
     stacks them into a single padded batch tensor.

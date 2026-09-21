@@ -260,6 +260,7 @@ _FULL_CONFIG = (
     # reaching the backend key, so we must also register the CompositeImplicitAutograd
     # key for use_gems() to intercept it instead of silently running the decomposition.
     ("_pad_circular", _pad_circular, None, ["CompositeImplicitAutograd"]),
+    ("_pad_packed_sequence", _pad_packed_sequence),
     ("_padded_dense_to_jagged_forward", _padded_dense_to_jagged_forward),
     ("_pdist_backward", _pdist_backward),
     ("_pdist_forward", _pdist_forward),
