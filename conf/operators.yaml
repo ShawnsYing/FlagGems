@@ -7896,7 +7896,7 @@ ops:
   kind:
   - Math
   stages:
-  - alpha: '5.4'
+  - alpha: '5.5.0'
 - id: kaiser_window_beta
   description: A variant of kaiser_window() that takes an explicit periodic flag and
     beta shape parameter.
@@ -7908,7 +7908,7 @@ ops:
   kind:
   - Math
   stages:
-  - alpha: '5.4'
+  - alpha: '5.5.0'
 - id: kaiser_window_periodic
   description: A variant of kaiser_window() that takes an explicit periodic flag.
   for:
@@ -7919,7 +7919,7 @@ ops:
   kind:
   - Math
   stages:
-  - alpha: '5.4'
+  - alpha: '5.5.0'
 - id: kron
   description: Computes the Kronecker product of `input` and `other`.
   for:
