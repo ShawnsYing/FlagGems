@@ -7573,7 +7573,7 @@ ops:
   kind:
   - Math
   stages:
-  - alpha: '5.4'
+  - alpha: '5.5.0'
 - id: inplace_fused_experts
   description: This operator writes output directly to `hidden_states`.
   for:
