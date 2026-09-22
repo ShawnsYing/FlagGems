@@ -30,8 +30,9 @@ RENORM_SHAPES = (
         (5, 32, 20),
         (4, 8, 16),
         (2, 4, 8, 16),
-        # N = 640 (5*32*20) is not a power of two: autotune may select
-        # BLOCK_SIZE < N, which only a segmented loop over N handles.
+        # Along dim=0 this reduces over N = 2*64 = 128 elements per row;
+        # keeping a case whose N differs from the other shapes guards the
+        # segmented loop over N against shape-specific indexing errors.
         (5, 2, 64),
     ]
 )
