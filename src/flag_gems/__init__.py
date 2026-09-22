@@ -145,6 +145,7 @@ _FULL_CONFIG = (
     ("_cummax_helper", _cummax_helper),
     ("_cummin_helper", _cummin_helper),
     ("_dirichlet_grad", _dirichlet_grad, lambda: _HAS_MAP_ELEMENTWISE),
+    ("_dyn_quant_matmul_4bit", _dyn_quant_matmul_4bit),
     ("_dyn_quant_pack_4bit_weight", _dyn_quant_pack_4bit_weight),
     ("_efficient_attention_backward", efficient_attention_backward),
     ("_embedding_bag_dense_backward", _embedding_bag_dense_backward),
@@ -311,6 +312,7 @@ _FULL_CONFIG = (
     ("_sparse_semi_structured_addmm", _sparse_semi_structured_addmm),
     ("_sparse_semi_structured_linear", _sparse_semi_structured_linear),
     ("_sparse_semi_structured_mm", _sparse_semi_structured_mm),
+    ("_standard_gamma", standard_gamma),
     ("_standard_gamma_grad", standard_gamma_grad),
     (
         "_thnn_differentiable_gru_cell_backward",
@@ -1063,6 +1065,8 @@ _FULL_CONFIG = (
     ("mode", mode),
     ("mse_loss", mse_loss),
     ("mse_loss_backward", mse_loss_backward),
+    ("msort", msort),
+    ("msort.out", msort_out),
     ("mul.Tensor", mul),
     ("mul_.Tensor", mul_),
     ("multi_margin_loss", multi_margin_loss),
@@ -1187,6 +1191,18 @@ _FULL_CONFIG = (
     (
         "quantized_max_pool1d.out",
         quantized_max_pool1d_out,
+        None,
+        (QUANTIZED_CUDA_DISPATCH_KEY,),
+    ),
+    (
+        "quantized_max_pool2d",
+        quantized_max_pool2d,
+        None,
+        (QUANTIZED_CUDA_DISPATCH_KEY,),
+    ),
+    (
+        "quantized_max_pool2d.out",
+        quantized_max_pool2d_out,
         None,
         (QUANTIZED_CUDA_DISPATCH_KEY,),
     ),
@@ -1547,6 +1563,8 @@ _FULL_CONFIG = (
     ("unsqueeze", unsqueeze),
     ("unsqueeze_", unsqueeze_),
     ("upsample_bicubic2d", upsample_bicubic2d),
+    ("upsample_bicubic2d_backward", upsample_bicubic2d_backward),
+    ("upsample_bicubic2d_backward.grad_input", upsample_bicubic2d_backward_grad_input),
     ("upsample_bilinear2d", upsample_bilinear2d),
     ("upsample_bilinear2d_backward", upsample_bilinear2d_backward),
     (

@@ -53,6 +53,7 @@ from flag_gems.ops._cslt_sparse_mm import _cslt_sparse_mm
 from flag_gems.ops._cummax_helper import _cummax_helper
 from flag_gems.ops._cummin_helper import _cummin_helper
 from flag_gems.ops._dirichlet_grad import _dirichlet_grad
+from flag_gems.ops._dyn_quant_matmul_4bit import _dyn_quant_matmul_4bit
 from flag_gems.ops._dyn_quant_pack_4bit_weight import _dyn_quant_pack_4bit_weight
 from flag_gems.ops._embedding_bag_dense_backward import _embedding_bag_dense_backward
 from flag_gems.ops._embedding_bag_per_sample_weights_backward import (
@@ -160,6 +161,7 @@ from flag_gems.ops._sobol_engine_ff_ import _sobol_engine_ff_
 from flag_gems.ops._sparse_semi_structured_addmm import _sparse_semi_structured_addmm
 from flag_gems.ops._sparse_semi_structured_linear import _sparse_semi_structured_linear
 from flag_gems.ops._sparse_semi_structured_mm import _sparse_semi_structured_mm
+from flag_gems.ops._standard_gamma import standard_gamma
 from flag_gems.ops._standard_gamma_grad import standard_gamma_grad
 from flag_gems.ops._thnn_differentiable_gru_cell_backward import (
     _thnn_differentiable_gru_cell_backward,
@@ -764,6 +766,7 @@ from flag_gems.ops.mm import mm, mm_out, router_gemm
 from flag_gems.ops.mode import mode
 from flag_gems.ops.mse_loss import mse_loss
 from flag_gems.ops.mse_loss_backward import mse_loss_backward
+from flag_gems.ops.msort import msort, msort_out
 from flag_gems.ops.mul import mul, mul_
 from flag_gems.ops.multi_margin_loss import (
     multi_margin_loss,
@@ -871,6 +874,10 @@ from flag_gems.ops.quantized_lstm import quantized_lstm
 from flag_gems.ops.quantized_max_pool1d import (
     quantized_max_pool1d,
     quantized_max_pool1d_out,
+)
+from flag_gems.ops.quantized_max_pool2d import (
+    quantized_max_pool2d,
+    quantized_max_pool2d_out,
 )
 from flag_gems.ops.quantized_max_pool3d import (
     quantized_max_pool3d,
@@ -1165,6 +1172,10 @@ from flag_gems.ops.unsqueeze import unsqueeze, unsqueeze_
 from flag_gems.ops.upsample_bicubic2d import upsample_bicubic2d
 from flag_gems.ops.upsample_bicubic2d_aa import _upsample_bicubic2d_aa
 from flag_gems.ops.upsample_bicubic2d_aa_backward import _upsample_bicubic2d_aa_backward
+from flag_gems.ops.upsample_bicubic2d_backward import (
+    upsample_bicubic2d_backward,
+    upsample_bicubic2d_backward_grad_input,
+)
 from flag_gems.ops.upsample_bilinear2d import upsample_bilinear2d
 from flag_gems.ops.upsample_bilinear2d_backward import (
     upsample_bilinear2d_backward,
@@ -1264,6 +1275,7 @@ __all__ = [
     "_cummax_helper",
     "_cummin_helper",
     "_dirichlet_grad",
+    "_dyn_quant_matmul_4bit",
     "_dyn_quant_pack_4bit_weight",
     "_embedding_bag_dense_backward",
     "_embedding_bag_per_sample_weights_backward",
@@ -2008,6 +2020,8 @@ __all__ = [
     "mode",
     "mse_loss",
     "mse_loss_backward",
+    "msort",
+    "msort_out",
     "mul",
     "mul_",
     "multi_margin_loss",
@@ -2114,6 +2128,8 @@ __all__ = [
     "quantized_lstm",
     "quantized_max_pool1d",
     "quantized_max_pool1d_out",
+    "quantized_max_pool2d",
+    "quantized_max_pool2d_out",
     "quantized_max_pool3d",
     "quantized_max_pool3d_out",
     "rad2deg",
@@ -2354,6 +2370,7 @@ __all__ = [
     "sspaddmm",
     "sspaddmm_out",
     "stack",
+    "standard_gamma",
     "standard_gamma_grad",
     "std",
     "std_mean",
@@ -2437,6 +2454,8 @@ __all__ = [
     "unsqueeze",
     "unsqueeze_",
     "upsample_bicubic2d",
+    "upsample_bicubic2d_backward",
+    "upsample_bicubic2d_backward_grad_input",
     "upsample_bilinear2d",
     "upsample_bilinear2d_backward",
     "upsample_bilinear2d_backward_grad_input",
