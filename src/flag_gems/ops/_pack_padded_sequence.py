@@ -100,8 +100,22 @@ def _pack_padded_sequence(input, lengths, batch_first):
         )
         batch_index = torch.arange(total_len, dtype=torch.int64) - run_starts
 
-        row2t = time_index.to(input.device)
-        row2b = batch_index.to(input.device)
+        # ``to(device)`` on a CPU-resident tensor is a *pageable* H2D copy,
+        # which the CUDA driver makes synchronous: it blocks the caller until
+        # every previously enqueued GPU operation has completed. The benchmark
+        # harness flushes the L2 cache with a large fill right before timing
+        # each call, so that stall lands inside the measured region and
+        # dominates the result for small inputs. Pinning the (tiny) host
+        # indices and copying with ``non_blocking=True`` keeps the transfer
+        # asynchronous and lets it overlap the copy kernel. ``pin_memory`` is
+        # only meaningful when staging to CUDA, so other backends keep the
+        # plain transfer.
+        if input.device.type == "cuda":
+            row2t = time_index.pin_memory().to(input.device, non_blocking=True)
+            row2b = batch_index.pin_memory().to(input.device, non_blocking=True)
+        else:
+            row2t = time_index.to(input.device)
+            row2b = batch_index.to(input.device)
         # Cap the feature block so a single row fits one program launch while
         # keeping loads coalesced; 1024 is a safe upper bound for the block.
         block_feat = min(triton.next_power_of_2(feat_size), 1024)
