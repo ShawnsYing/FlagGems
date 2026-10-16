@@ -37,7 +37,10 @@ if cfg.QUICK_MODE:
     ]
 else:
     # (input_shape,) tuples; the last dimension is always 2. Covers 0-dim
-    # scalar output ([2] -> ()), 1-D/2-D/3-D/5-D inputs and empty tensors.
+    # scalar output ([2] -> ()), 1-D/2-D/3-D/5-D inputs. Empty tensors are
+    # covered by the dedicated test_accuracy_view_as_complex_copy_empty, and
+    # non-contiguous / high-rank inputs that need the strided path by the
+    # dedicated tests below (the contig path is a flat rank-independent copy).
     VIEW_AS_COMPLEX_SHAPES = [
         (2,),
         (4, 2),
@@ -45,8 +48,6 @@ else:
         (2, 5, 2),
         (2, 3, 4, 2),
         (2, 2, 2, 3, 2),
-        (0, 2),
-        (3, 0, 2),
         (1, 2),
     ]
 
@@ -61,10 +62,20 @@ def _as_complex64(t):
 
 
 def _assert_matches(res, ref, inp):
+    # dtype -- the reinterpret must produce the mapping complex32/64/128 ->
+    # float16/32/64; a wrong out dtype would fail the value check only after a
+    # lossy comparison, so it is pinned explicitly.
     assert res.dtype == ref.dtype, f"dtype {res.dtype} != {ref.dtype}"
+    # shape -- size[:-1] with the last dim folded away; a wrong rank/extent is
+    # a wrong reinterpret even if values match.
     assert tuple(res.shape) == tuple(ref.shape)
+    # is_contiguous -- the output must be a fresh contiguous tensor like aten.
     assert res.is_contiguous()
+    # _is_alias_of -- the copy must never share storage with the input;
+    # gems_assert_equal below compares values only and would pass for an
+    # aliased view, so this is not redundant with it.
     assert not torch._C._is_alias_of(res, inp)
+    # values -- full elementwise equality against the reference.
     utils.gems_assert_equal(_as_complex64(res), _as_complex64(ref))
 
 
@@ -134,6 +145,34 @@ def test_accuracy_view_as_complex_copy_transposed(dtype):
     ref_out = torch.ops.aten.view_as_complex_copy(ref_inp)
     res_out = flag_gems.view_as_complex_copy(inp)
     _assert_matches(res_out, ref_out, inp)
+
+
+@pytest.mark.view_as_complex_copy
+@pytest.mark.parametrize("dtype", VIEW_AS_COMPLEX_DTYPES)
+def test_accuracy_view_as_complex_copy_high_rank_noncontiguous(dtype):
+    # 4-D/5-D/6-D non-contiguous inputs: only non-contiguous inputs reach
+    # _view_as_complex_copy_strided_kernel, whose leading-dim stride slots are
+    # the rank-dependent code path. Every VIEW_AS_COMPLEX_SHAPES entry is
+    # contiguous and takes the flat, rank-independent contig kernel, so this
+    # is the only coverage of the strided decomposition for rank > 2 (the
+    # highest rank accepted is 6, i.e. rank == _MAX_LEAD_RANK + 1).
+    base4 = torch.randn(4, 8, 6, 2, dtype=dtype, device=flag_gems.device)
+    base5 = torch.randn(4, 6, 8, 6, 2, dtype=dtype, device=flag_gems.device)
+    base6 = torch.randn(2, 4, 6, 3, 5, 2, dtype=dtype, device=flag_gems.device)
+    inputs = [
+        base4[:, ::2, :, :],  # 4-D stride-2 batch
+        base4.transpose(1, 2),  # 4-D transposed
+        base5[:, ::2, :, ::2, :],  # 5-D strided
+        base5.transpose(2, 3),  # 5-D transposed
+        base6.transpose(1, 3),  # 6-D transposed (highest accepted rank)
+    ]
+    for inp in inputs:
+        assert not inp.is_contiguous()
+        assert inp.stride(-1) == 1
+        ref_inp = utils.to_reference(inp)
+        ref_out = torch.ops.aten.view_as_complex_copy(ref_inp)
+        res_out = flag_gems.view_as_complex_copy(inp)
+        _assert_matches(res_out, ref_out, inp)
 
 
 @pytest.mark.view_as_complex_copy
@@ -223,3 +262,11 @@ def test_accuracy_view_as_complex_copy_error_paths():
         )
     with pytest.raises(RuntimeError):
         flag_gems.view_as_complex_copy(torch.randint(0, 4, (4, 2), device=dev))
+
+    # rank - 1 > _MAX_LEAD_RANK (5): a 7-D input. The guard lives on the
+    # non-contiguous branch, so use a non-contiguous 7-D input; 6-D is the
+    # highest accepted rank (covered by the high-rank strided test).
+    rank7 = torch.randn(*([2] * 7), device=dev).transpose(1, 2)
+    assert not rank7.is_contiguous()
+    with pytest.raises(RuntimeError, match="at most 6 dimensions"):
+        flag_gems.view_as_complex_copy(rank7)
