@@ -85,14 +85,21 @@ def _require_fbgemm_helpers():
     availability varies across torch builds; probing lazily via torch.ops
     keeps the module importable everywhere.
     """
-    if not hasattr(torch.ops.aten, "fbgemm_pack_gemm_matrix_fp16") or not hasattr(
-        torch.ops.aten, "fbgemm_linear_fp16_weight_fp32_activation"
-    ):
-        pytest.skip(
-            "fbgemm-backed aten helpers (fbgemm_pack_gemm_matrix_fp16 / "
-            "fbgemm_linear_fp16_weight_fp32_activation) unavailable on this "
-            "torch build"
+    # hasattr alone is not enough: builds without FBGEMM still register the
+    # schema but raise "not built with FBGEMM operators" at call time, so the
+    # probe must attempt a call.
+    try:
+        torch.ops.aten.fbgemm_pack_gemm_matrix_fp16(
+            torch.zeros(1, 1, dtype=torch.float32)
         )
+    except RuntimeError as e:
+        if "not built with FBGEMM" in str(e):
+            pytest.skip(
+                "fbgemm-backed aten helpers (fbgemm_pack_gemm_matrix_fp16 / "
+                "fbgemm_linear_fp16_weight_fp32_activation) unavailable on this "
+                "torch build"
+            )
+        raise
 
 
 def _packed_weight(n_out=N_OUT, n_in=N_IN, seed=0):

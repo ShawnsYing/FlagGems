@@ -90,7 +90,7 @@ def fbgemm_linear_fp16_weight_fp32_activation(input, packed_weight, bias):
         result = torch.ops.aten.fbgemm_linear_fp16_weight_fp32_activation(
             input.cpu(), packed_weight, bias.cpu() if bias is not None else bias
         )
-        return result.cuda(input.device)
+        return result.to(input.device)
 
     return torch.ops.aten.fbgemm_linear_fp16_weight_fp32_activation(
         input, packed_weight, bias
