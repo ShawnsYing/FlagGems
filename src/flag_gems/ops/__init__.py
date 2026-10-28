@@ -383,6 +383,13 @@ from flag_gems.ops._sparse_semi_structured_addmm import _sparse_semi_structured_
 from flag_gems.ops._sparse_semi_structured_linear import _sparse_semi_structured_linear
 from flag_gems.ops._sparse_semi_structured_mm import _sparse_semi_structured_mm
 from flag_gems.ops._sparse_semi_structured_tile import _sparse_semi_structured_tile
+from flag_gems.ops._sparse_sum import (
+    _sparse_sum,
+    _sparse_sum_dim,
+    _sparse_sum_dim_dtype,
+    _sparse_sum_dim_out,
+    _sparse_sum_dtype,
+)
 from flag_gems.ops._spsolve import spsolve
 from flag_gems.ops._stack import _stack
 from flag_gems.ops._standard_gamma import standard_gamma
@@ -452,7 +459,9 @@ from flag_gems.ops.adaptive_avg_pool1d import adaptive_avg_pool1d
 from flag_gems.ops.adaptive_avg_pool2d import (
     _adaptive_avg_pool2d_out as adaptive_avg_pool2d_out,
 )
-from flag_gems.ops.adaptive_avg_pool2d import adaptive_avg_pool2d
+from flag_gems.ops.adaptive_avg_pool2d import (
+    adaptive_avg_pool2d,
+)
 from flag_gems.ops.adaptive_avg_pool3d_backward import (
     _adaptive_avg_pool3d_backward,
     adaptive_avg_pool3d_backward_grad_input,
@@ -1958,6 +1967,11 @@ __all__ = [
     "_sobol_engine_ff_",
     "_sobol_engine_initialize_state_",
     "_sobol_engine_scramble_",
+    "_sparse_sum",
+    "_sparse_sum_dim",
+    "_sparse_sum_dim_dtype",
+    "_sparse_sum_dim_out",
+    "_sparse_sum_dtype",
     "_sparse_mm_reduce_impl",
     "_sparse_semi_structured_addmm",
     "_sparse_semi_structured_linear",
