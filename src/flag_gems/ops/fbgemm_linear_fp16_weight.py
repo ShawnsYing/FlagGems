@@ -43,8 +43,6 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-_LOG_PREFIX = "GEMS FBGEMM LINEAR FP16 WEIGHT"
-
 
 def _validate(input, packed_weight, bias):
     if not isinstance(input, torch.Tensor):
@@ -81,6 +79,6 @@ def fbgemm_linear_fp16_weight(input, packed_weight, bias):
         result = torch.ops.aten.fbgemm_linear_fp16_weight(
             input.cpu(), packed_weight, bias.cpu() if bias is not None else bias
         )
-        return result.cuda(input.device)
+        return result.to(input.device)
 
     return torch.ops.aten.fbgemm_linear_fp16_weight(input, packed_weight, bias)

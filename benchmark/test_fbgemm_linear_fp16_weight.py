@@ -51,8 +51,8 @@ class BenchmarkFbgemmLinearFp16Weight(base.Benchmark):
             m, n = shape
             weight = torch.randn(n, n, dtype=torch.float32)
             packed = torch.ops.aten.fbgemm_pack_gemm_matrix_fp16(weight)
-            inp = torch.randn(m, n, dtype=torch.float32, device="cuda")
-            bias = torch.randn(n, dtype=torch.float32, device="cuda")
+            inp = torch.randn(m, n, dtype=torch.float32, device=flag_gems.device)
+            bias = torch.randn(n, dtype=torch.float32, device=flag_gems.device)
             yield inp, packed, bias
 
 
