@@ -72,6 +72,22 @@ SHAPES = (
 # PackBMatrix wrapper stored in the TensorImpl.
 N_OUT, N_IN = 16, 32
 
+# Builds without FBGEMM register the aten schemas but raise at call time, so
+# probe with an actual call rather than hasattr (reviewer-reproduced on
+# torch 2.14.1+cpu).
+try:
+    torch.ops.aten.fbgemm_pack_quantized_matrix(
+        torch.zeros(1, 1, dtype=torch.int8)
+    )
+    _fbgemm_available = True
+except RuntimeError as e:
+    if "not built with FBGEMM" not in str(e):
+        raise
+    _fbgemm_available = False
+
+pytestmark = pytest.mark.skipif(
+    not _fbgemm_available, reason="FBGEMM operators unavailable on this torch build"
+)
 
 def _quantized_weight(n_out=N_OUT, n_in=N_IN, seed=0):
     """Build (weight, packed, col_offsets, scale, zero_point) like the op expects.

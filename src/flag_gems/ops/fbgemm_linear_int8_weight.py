@@ -138,7 +138,7 @@ def fbgemm_linear_int8_weight(
             bias.cpu() if bias is not None else bias,
         )
         if host_input:
-            return result.cuda(input.device)
+            return result.to(input.device)
         # CPU-resident activations with a device-resident bias: the kernel
         # itself computes on the host, so the result stays on the input's
         # device (aten semantics for this op).
