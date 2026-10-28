@@ -457,9 +457,7 @@ from flag_gems.ops.adaptive_avg_pool1d import adaptive_avg_pool1d
 from flag_gems.ops.adaptive_avg_pool2d import (
     _adaptive_avg_pool2d_out as adaptive_avg_pool2d_out,
 )
-from flag_gems.ops.adaptive_avg_pool2d import (
-    adaptive_avg_pool2d,
-)
+from flag_gems.ops.adaptive_avg_pool2d import adaptive_avg_pool2d
 from flag_gems.ops.adaptive_avg_pool3d_backward import (
     _adaptive_avg_pool3d_backward,
     adaptive_avg_pool3d_backward_grad_input,
