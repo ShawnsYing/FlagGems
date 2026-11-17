@@ -42,3 +42,14 @@ def test_digamma_inplace():
         is_inplace=True,
     )
     bench.run()
+
+
+@pytest.mark.digamma_backward
+def test_digamma_backward():
+    bench = base.UnaryPointwiseBenchmark(
+        op_name="digamma",
+        torch_op=torch.digamma,
+        dtypes=consts.FLOAT_DTYPES,
+        is_backward=True,
+    )
+    bench.run()

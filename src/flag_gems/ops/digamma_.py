@@ -156,7 +156,7 @@ def digamma_kernel(
     tl.store(output_ptr + offsets, result, mask=mask)
 
 
-def digamma(A):
+def _digamma_impl(A):
     logger.debug("GEMS DIGAMMA")
     if not isinstance(A, torch.Tensor):
         raise TypeError("digamma expects a torch.Tensor as the first argument")
@@ -174,3 +174,19 @@ def digamma(A):
     with torch_device_fn.device(A.device):
         digamma_kernel[grid](A, output, n_elements, BLOCK_SIZE=1024)
     return output
+
+
+def digamma(A):
+    # Route differentiable inputs through the autograd bridge so the Triton
+    # backward kernel is available (ATen has no aten::digamma_backward schema).
+    if (
+        isinstance(A, torch.Tensor)
+        and A.requires_grad
+        and torch.is_grad_enabled()
+        and A.is_complex() is False
+        and A.dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float64)
+    ):
+        from flag_gems.ops.digamma_backward import DigammaFunction
+
+        return DigammaFunction.apply(A)
+    return _digamma_impl(A)
